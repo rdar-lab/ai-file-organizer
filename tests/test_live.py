@@ -8,6 +8,7 @@ import pytest
 import requests
 import subprocess
 import yaml
+import sys
 
 # Mark all tests in this file as live tests
 pytestmark = pytest.mark.live
@@ -20,16 +21,21 @@ class TestDockerIntegration:
     
     @staticmethod
     def run_command(cmd, cwd=None, timeout=300):
-        """Run a shell command and return output."""
+        """Run a shell command and stream output live."""
+        
+        print(f"Running command: {cmd} in {cwd if cwd else os.getcwd()}")
+        
         result = subprocess.run(
             cmd,
             shell=True,
             cwd=cwd,
-            capture_output=True,
+            stdout=sys.stdout,
+            stderr=sys.stderr,
             text=True,
             timeout=timeout
         )
-        return result.returncode, result.stdout, result.stderr
+        # Output is already shown live, so return empty strings for stdout/stderr
+        return result.returncode
     
     @staticmethod
     def wait_for_ollama(base_url="http://localhost:11434", timeout=120):
@@ -82,14 +88,14 @@ class TestDockerIntegration:
         
         # Start docker-compose services
         print("Starting docker-compose services...")
-        returncode, stdout, stderr = self.run_command(
+        returncode = self.run_command(
             "docker compose up -d ollama",
             cwd=repo_root,
             timeout=120
         )
         
         if returncode != 0:
-            pytest.skip(f"Failed to start docker-compose: {stderr}")
+            pytest.skip(f"Failed to start docker-compose")
         
         # Wait for Ollama to be ready
         if not self.wait_for_ollama("http://localhost:11434", timeout=120):
@@ -191,18 +197,18 @@ class TestDockerIntegration:
         
         # Build the ai-file-organizer image
         print("Building ai-file-organizer Docker image...")
-        returncode, stdout, stderr = self.run_command(
+        returncode = self.run_command(
             "docker compose build ai-file-organizer",
             cwd=repo_root,
             timeout=300
         )
         
         if returncode != 0:
-            pytest.fail(f"Failed to build Docker image: {stderr}")
+            pytest.fail(f"Failed to build Docker image")
         
         # Run the container with overridden volumes
         print("Running ai-file-organizer container...")
-        returncode, stdout, stderr = self.run_command(
+        returncode = self.run_command(
             f"docker compose run --rm "
             f"-v {input_dir}:/input "
             f"-v {output_dir}:/output "
@@ -211,10 +217,6 @@ class TestDockerIntegration:
             cwd=repo_root,
             timeout=300
         )
-        
-        print(f"Container output:\n{stdout}")
-        if stderr:
-            print(f"Container stderr:\n{stderr}")
         
         # Check that files were processed
         # Files should be moved from input to output
@@ -250,18 +252,18 @@ class TestDockerIntegration:
         
         # Build the image
         print("Building ai-file-organizer Docker image...")
-        returncode, stdout, stderr = self.run_command(
+        returncode = self.run_command(
             "docker compose build ai-file-organizer",
             cwd=repo_root,
             timeout=300
         )
         
         if returncode != 0:
-            pytest.fail(f"Failed to build Docker image: {stderr}")
+            pytest.fail(f"Failed to build Docker image")
         
         # Run with dry-run flag using docker run directly
         print("Running ai-file-organizer container in dry-run mode...")
-        returncode, stdout, stderr = self.run_command(
+        returncode = self.run_command(
             'docker run --rm '
             '--network ai-file-organizer_default '
             f'-v {input_dir}:/input '
@@ -277,16 +279,60 @@ class TestDockerIntegration:
             timeout=300
         )
         
-        print(f"Dry-run output:\n{stdout}")
-        if stderr:
-            print(f"Dry-run stderr:\n{stderr}")
-        
         # In dry-run mode, files should not be moved
         files_after = set(os.listdir(input_dir))
         assert files_before == files_after, "Files were moved in dry-run mode"
         
         print("Dry-run test passed - files were not moved")
 
+
+    def test_cli_organizes_files(self, test_workspace):
+        """Test that the CLI organizes files using the same setup as Docker."""
+        repo_root = test_workspace['repo_root']
+        input_dir = test_workspace['input_dir']
+        output_dir = test_workspace['output_dir']
+        config_path = test_workspace['config_path']
+
+        # Count files before
+        files_before = os.listdir(input_dir)
+        print(f"Files in input before (CLI): {files_before}")
+
+        # Run the CLI
+        src_dir = os.path.join(repo_root, "src")
+        cmd = (
+            f"python3 -m ai_file_organizer.cli "
+            f"-i {input_dir} -o {output_dir} "
+            f"-l Documents Images Code Data Other "
+            f"--provider local --model tinyllama "
+            f"--base-url http://localhost:11434/v1 "
+            f"--api-key not-needed "
+            f"--config {config_path} "
+        )
+        returncode = self.run_command(cmd, cwd=src_dir, timeout=300)
+
+        if returncode != 0:
+            pytest.fail(f"CLI failed")
+
+        # Check that files were processed
+        files_after = os.listdir(input_dir)
+        print(f"Files in input after (CLI): {files_after}")
+
+        # Check output directory
+        if os.path.exists(output_dir):
+            output_contents = []
+            for root, dirs, files in os.walk(output_dir):
+                for file in files:
+                    rel_path = os.path.relpath(os.path.join(root, file), output_dir)
+                    output_contents.append(rel_path)
+            print(f"Files in output (CLI): {output_contents}")
+
+            # Verify that some files were organized
+            assert len(output_contents) > 0, "No files were organized to output directory (CLI)"
+
+            # Verify subdirectories were created
+            subdirs = [d for d in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, d))]
+            print(f"Subdirectories created (CLI): {subdirs}")
+            assert len(subdirs) > 0, "No subdirectories were created (CLI)"
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '-s'])
