@@ -4,8 +4,11 @@ import os
 import stat
 import zipfile
 import tarfile
+import logging
 from typing import Dict, Any, Optional
 import magic
+
+logger = logging.getLogger(__name__)
 
 
 class FileAnalyzer:
@@ -59,7 +62,7 @@ class FileAnalyzer:
         """Get MIME type of the file."""
         try:
             return self.magic.from_file(file_path)
-        except Exception as e:
+        except (IOError, OSError) as e:
             return 'unknown'
     
     def _is_executable(self, file_path: str) -> bool:
@@ -89,7 +92,7 @@ class FileAnalyzer:
                 with tarfile.open(file_path, 'r') as tf:
                     files = tf.getnames()
                     return '\n'.join(files[:50])  # Limit to first 50 files
-        except Exception:
-            pass
+        except (IOError, OSError, zipfile.BadZipFile, tarfile.TarError) as e:
+            logger.warning(f"Failed to read archive contents for {file_path}: {str(e)}")
         
         return None
