@@ -91,14 +91,14 @@ class TestDockerIntegration:
         returncode = self.run_command(
             "docker compose up -d ollama",
             cwd=repo_root,
-            timeout=120
+            timeout=300
         )
         
         if returncode != 0:
             pytest.skip(f"Failed to start docker-compose")
         
         # Wait for Ollama to be ready
-        if not self.wait_for_ollama("http://localhost:11434", timeout=120):
+        if not self.wait_for_ollama("http://localhost:11434", timeout=300):
             # Cleanup
             self.run_command("docker compose down", cwd=repo_root)
             pytest.skip("Ollama service did not become ready in time")
