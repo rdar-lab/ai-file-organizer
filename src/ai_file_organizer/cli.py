@@ -2,11 +2,13 @@
 
 import argparse
 import sys
+import logging
 
 import yaml
 
 from .organizer import FileOrganizer
 
+logger = logging.getLogger(__name__)
 
 def load_config(config_path: str) -> dict:
     """Load configuration from YAML file."""
@@ -15,6 +17,13 @@ def load_config(config_path: str) -> dict:
 
 
 def main():
+    # Initialize logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description="AI File Organizer - Organize files using AI/LLM models"
@@ -75,56 +84,68 @@ def main():
         config = load_config(args.config)
         ai_config = config.get("ai", {})
         labels = config.get("labels", [])
-    else:
-        ai_config = {
-            "provider": args.provider,
-            "model": args.model,
-            "temperature": args.temperature,
-        }
 
-        if args.api_key:
-            ai_config["api_key"] = args.api_key
+    if ai_config is None:
+        ai_config = {}
 
-        if args.azure_endpoint:
-            ai_config["azure_endpoint"] = args.azure_endpoint
+    if labels is None:
+        labels = []
 
-        if args.base_url:
-            ai_config["base_url"] = args.base_url
+    # Override config with CLI args if provided
+    if args.provider:
+        ai_config["provider"] = args.provider
 
-        labels = args.labels or []
+    if args.model:
+        ai_config["model"] = args.model
+
+    if args.temperature is not None:
+        ai_config["temperature"] = args.temperature
+
+    if args.api_key:
+        ai_config["api_key"] = args.api_key
+
+    if args.azure_endpoint:
+        ai_config["azure_endpoint"] = args.azure_endpoint
+
+    if args.base_url:
+        ai_config["base_url"] = args.base_url
+
+    if args.labels:
+        labels = args.labels
 
     # Validate labels
     if not labels:
-        print("Error: No labels specified. Use --labels or provide a config file.")
+        logger.error("No labels specified. Use --labels or provide a config file.")
         sys.exit(1)
 
     # Create organizer and process files
     try:
         organizer = FileOrganizer(ai_config, labels)
-        print("Starting file organization...")
-        print(f"Input folder: {args.input}")
-        print(f"Output folder: {args.output}")
-        print(f"Labels: {', '.join(labels)}")
-        print(f"Provider: {ai_config['provider']}")
-        print(f"Model: {ai_config['model']}")
+        logger.info("Starting file organization...")
+        logger.info(f"Using AI Config: { {k: v for k, v in ai_config.items() if k != 'api_key'} }")
+        logger.info(f"Input folder: {args.input}")
+        logger.info(f"Output folder: {args.output}")
+        logger.info(f"Labels: {', '.join(labels)}")
+        logger.info(f"Provider: {ai_config['provider']}")
+        logger.info(f"Model: {ai_config['model']}")
 
         if args.dry_run:
-            print("\n*** DRY RUN MODE - No files will be moved ***\n")
+            logging.warning("*** DRY RUN MODE - No files will be moved ***")
 
         stats = organizer.organize_files(args.input, args.output, dry_run=args.dry_run)
 
-        print("\n" + ("=" * 50))
-        print("Organization Complete!")
-        print("=" * 50)
-        print(f"Total files: {stats['total_files']}")
-        print(f"Processed: {stats['processed']}")
-        print(f"Failed: {stats['failed']}")
-        print("\nCategorization:")
+        logger.info("\n" + ("=" * 50))
+        logger.info("Organization Complete!")
+        logger.info("=" * 50)
+        logger.info(f"Total files: {stats['total_files']}")
+        logger.info(f"Processed: {stats['processed']}")
+        logger.info(f"Failed: {stats['failed']}")
+        logger.info("Categorization:")
         for label, count in stats["categorization"].items():
-            print(f"  {label}: {count} files")
+            logger.info(f"  {label}: {count} files")
 
     except Exception as e:
-        print(f"Error: {str(e)}", file=sys.stderr)
+        logger.exception(f"Error: {str(e)}")
         sys.exit(1)
 
 
