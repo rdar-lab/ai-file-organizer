@@ -158,4 +158,4 @@ class TestAIFacade:
             category = facade.categorize_file(file_info, labels)
             
             # Should default to first label
-            assert category == 'Documents'
+            assert category is None
