@@ -93,16 +93,41 @@ class FileAnalyzer:
             return "unknown"
 
     def _is_executable(self, file_path: str) -> bool:
-        """Check if file is executable (cross-platform)."""
+        """Check if file is executable (detects Unix, Windows, shebang, and binary magic numbers on any platform)."""
         try:
-            if os.name == "nt":
-                # On Windows, check for executable extensions
-                executable_exts = {".exe", ".bat", ".cmd", ".com", ".ps1"}
-                _, ext = os.path.splitext(file_path)
-                return ext.lower() in executable_exts
-            else:
-                file_stats = os.stat(file_path)
-                return bool(file_stats.st_mode & stat.S_IXUSR)
+            # Check for Windows executable extensions
+            executable_exts = {".exe", ".bat", ".cmd", ".com", ".ps1"}
+            _, ext = os.path.splitext(file_path)
+            if ext.lower() in executable_exts:
+                return True
+
+            # Check for shebang (#!) at the start of the file and binary magic numbers
+            try:
+                with open(file_path, "rb") as f:
+                    first_bytes = f.read(4)
+                    # Shebang
+                    if first_bytes[:2] == b"#!":
+                        return True
+                    # ELF (Linux)
+                    if first_bytes == b"\x7fELF":
+                        return True
+                    # PE (Windows EXE/DLL)
+                    if first_bytes[:2] == b"MZ":
+                        return True
+                    # Mach-O (macOS)
+                    if first_bytes in [
+                        b"\xfe\xed\xfa\xce",
+                        b"\xfe\xed\xfa\xcf",
+                        b"\xca\xfe\xba\xbe",
+                        b"\xcf\xfa\xed\xfe",
+                    ]:
+                        return True
+            except Exception:
+                pass
+
+            # Check Unix executable bit
+            file_stats = os.stat(file_path)
+            return bool(file_stats.st_mode & stat.S_IXUSR)
         except Exception:
             return False
 

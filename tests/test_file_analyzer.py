@@ -53,20 +53,65 @@ class TestFileAnalyzer:
             assert analyzer._get_file_extension('test') == 'no_extension'
     
     def test_is_executable(self):
-        """Test executable detection."""
-        # Create a temporary executable file
+        """Test executable detection for all supported types."""
+        analyzer = FileAnalyzer()
+
+        # 1. Unix-style executable (chmod +x)
         with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write('#!/bin/bash\necho test')
-            temp_path = f.name
-        
+            f.write('echo test')
+            unix_exec_path = f.name
         try:
-            os.chmod(temp_path, 0o755)
-            
-            with patch('ai_file_organizer.file_analyzer.magic.Magic'):
-                analyzer = FileAnalyzer()
-                assert analyzer._is_executable(temp_path) is True
+            os.chmod(unix_exec_path, 0o755)
+            assert analyzer._is_executable(unix_exec_path) is True
         finally:
-            os.unlink(temp_path)
+            os.unlink(unix_exec_path)
+
+        # 2. Windows-style executable (by extension)
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.bat', delete=False) as f:
+            f.write('@echo off\necho test')
+            win_exec_path = f.name
+        try:
+            assert analyzer._is_executable(win_exec_path) is True
+        finally:
+            os.unlink(win_exec_path)
+
+        # 3. Shebang script
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+            f.write(b'#! /usr/bin/env python\nprint(123)')
+            shebang_path = f.name
+        try:
+            assert analyzer._is_executable(shebang_path) is True
+        finally:
+            os.unlink(shebang_path)
+
+        # 4. ELF binary (Linux)
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+            f.write(b'\x7fELF' + b'\x00' * 60)
+            elf_path = f.name
+        try:
+            assert analyzer._is_executable(elf_path) is True
+        finally:
+            os.unlink(elf_path)
+
+        # 5. PE binary (Windows EXE)
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+            f.write(b'MZ' + b'\x00' * 62)
+            pe_path = f.name
+        try:
+            assert analyzer._is_executable(pe_path) is True
+        finally:
+            os.unlink(pe_path)
+
+        # 6. Mach-O binary (macOS)
+        macho_magics = [b'\xfe\xed\xfa\xce', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xcf\xfa\xed\xfe']
+        for magic in macho_magics:
+            with tempfile.NamedTemporaryFile(mode='wb', delete=False) as f:
+                f.write(magic + b'\x00' * 60)
+                macho_path = f.name
+            try:
+                assert analyzer._is_executable(macho_path) is True
+            finally:
+                os.unlink(macho_path)
     
     def test_get_archive_contents_zip(self):
         """Test archive contents extraction for ZIP files."""
