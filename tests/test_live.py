@@ -17,8 +17,6 @@ pytestmark = pytest.mark.live
 class TestDockerIntegration:
     """Test class for Docker integration tests."""
     
-    temp_test_dir = None
-    
     @staticmethod
     def run_command(cmd, cwd=None, timeout=300):
         """Run a shell command and stream output live."""
@@ -95,22 +93,23 @@ class TestDockerIntegration:
         )
         
         if returncode != 0:
-            pytest.skip(f"Failed to start docker-compose")
+            self.fail(f"Failed to start docker-compose")
         
         # Wait for Ollama to be ready
         if not self.wait_for_ollama("http://localhost:11434", timeout=300):
             # Cleanup
             self.run_command("docker compose down", cwd=repo_root)
-            pytest.skip("Ollama service did not become ready in time")
+            self.fail("Ollama service did not become ready in time")
         
         # Ensure model is available
         model_name = os.getenv("OLLAMA_MODEL", "tinyllama")        
         if not self.ensure_model_available(model_name, "http://localhost:11434"):
             # Cleanup
-            self.run_command("docker compose down", cwd=repo_root)
-            pytest.skip(f"Model {model_name} not available")
+            self.fail(f"Model {model_name} not available")
         
-        yield repo_root
+        yield {
+            'repo_root': repo_root
+        }
         
         # Cleanup
         print("Tearing down docker-compose environment...")
@@ -119,8 +118,8 @@ class TestDockerIntegration:
     @pytest.fixture
     def test_workspace(self, docker_compose_environment):
         """Create test workspace with input files and config."""
-        repo_root = docker_compose_environment
-        temp_dir = TestDockerIntegration.temp_test_dir
+        repo_root = docker_compose_environment['repo_root']
+        temp_dir = tempfile.mkdtemp(prefix='ai-file-organizer-test-')
         
         # Create subdirectories for this test
         input_dir = os.path.join(temp_dir, 'input')
@@ -170,21 +169,13 @@ class TestDockerIntegration:
             'output_dir': output_dir,
             'config_path': config_path
         }
+
+        # Destroy and delete test directories
+        if os.path.exists(temp_dir):
+            print(f"Cleaning up test workspace: {temp_dir}")
+            shutil.rmtree(temp_dir, ignore_errors=True)
         
-    
-    @classmethod
-    def setup_class(cls):
-        """Set up class-level test resources."""
-        cls.temp_test_dir = tempfile.mkdtemp(prefix='ai-file-organizer-test-')
-        print(f"Created temporary test directory: {cls.temp_test_dir}")
-    
-    @classmethod
-    def teardown_class(cls):
-        """Clean up class-level test resources."""
-        if cls.temp_test_dir and os.path.exists(cls.temp_test_dir):
-            print(f"Cleaning up temporary test directory: {cls.temp_test_dir}")
-            shutil.rmtree(cls.temp_test_dir, ignore_errors=True)
-    
+
     def test_docker_container_organizes_files(self, test_workspace):
         """Test that Docker container organizes files using docker-compose."""
         repo_root = test_workspace['repo_root']
