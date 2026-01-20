@@ -2,9 +2,12 @@
 
 import os
 import shutil
+import logging
 from typing import List, Dict, Any
 from .ai_facade import AIFacade
 from .file_analyzer import FileAnalyzer
+
+logger = logging.getLogger(__name__)
 
 
 class FileOrganizer:
@@ -78,10 +81,14 @@ class FileOrganizer:
                     if os.path.exists(dest_path):
                         base, ext = os.path.splitext(filename)
                         counter = 1
-                        while os.path.exists(dest_path):
+                        max_attempts = 1000
+                        while os.path.exists(dest_path) and counter < max_attempts:
                             new_filename = f"{base}_{counter}{ext}"
                             dest_path = os.path.join(dest_dir, new_filename)
                             counter += 1
+                        
+                        if counter >= max_attempts:
+                            raise RuntimeError(f"Could not find unique filename for {filename} after {max_attempts} attempts")
                     
                     if not dry_run:
                         shutil.move(file_path, dest_path)
@@ -89,10 +96,14 @@ class FileOrganizer:
                     stats['processed'] += 1
                     stats['categorization'][category] += 1
                     
-                    print(f"{'[DRY RUN] ' if dry_run else ''}Moved {filename} -> {category}/")
+                    message = f"{'[DRY RUN] ' if dry_run else ''}Moved {filename} -> {category}/"
+                    print(message)
+                    logger.info(message)
                     
-                except Exception as e:
+                except (IOError, OSError, RuntimeError) as e:
                     stats['failed'] += 1
-                    print(f"Error processing {filename}: {str(e)}")
+                    error_msg = f"Error processing {filename}: {str(e)}"
+                    print(error_msg)
+                    logger.error(error_msg)
         
         return stats

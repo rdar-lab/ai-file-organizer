@@ -25,6 +25,8 @@ class AIFacade:
         self.config = config
         self.provider = config.get('provider', 'openai')
         self.llm = self._initialize_llm()
+        # Create lowercase label mapping for efficient case-insensitive matching
+        self._label_map = {}
     
     def _initialize_llm(self):
         """Initialize the LLM based on provider configuration."""
@@ -64,6 +66,10 @@ class AIFacade:
         Returns:
             The category label chosen by the LLM
         """
+        # Update label map if labels changed
+        if not self._label_map or set(self._label_map.values()) != set(labels):
+            self._label_map = {label.lower(): label for label in labels}
+        
         system_prompt = f"""You are a file categorization assistant. Your job is to categorize files into one of the following categories: {', '.join(labels)}.
 
 Analyze the file information provided and choose the most appropriate category. Respond with ONLY the category name, nothing else."""
@@ -94,10 +100,10 @@ Analyze the file information provided and choose the most appropriate category. 
         
         # Validate that the response is one of the labels
         if category not in labels:
-            # Try to find a match (case-insensitive)
-            for label in labels:
-                if label.lower() == category.lower():
-                    return label
+            # Try case-insensitive match using the label map
+            category_lower = category.lower()
+            if category_lower in self._label_map:
+                return self._label_map[category_lower]
             # Default to first label if no match
             return labels[0]
         
