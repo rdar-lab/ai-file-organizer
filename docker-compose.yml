@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  ai-file-organizer:
+    build: .
+    image: ai-file-organizer:latest
+    container_name: ai-file-organizer
+    volumes:
+      - ./input:/input
+      - ./output:/output
+      - ./config.yml:/app/config.yml
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+    command: >
+      ai-file-organizer
+      -i /input
+      -o /output
+      -c /app/config.yml
+
+  # Local LLM service using Ollama for testing
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai-file-organizer-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+
+volumes:
+  ollama-data:

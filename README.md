@@ -13,19 +13,61 @@ An intelligent file organization tool that uses AI/LLM models to automatically c
 
 ## Installation
 
-### From PyPI (coming soon)
+### Option 1: From PyPI (coming soon)
 ```bash
 pip install ai-file-organizer
 ```
 
-### From Source
+### Option 2: From Source
 ```bash
 git clone https://github.com/rdar-lab/ai-file-organizer.git
 cd ai-file-organizer
 pip install -e .
 ```
 
+### Option 3: Using Docker
+```bash
+docker pull ghcr.io/rdar-lab/ai-file-organizer:latest
+```
+
+Or build locally:
+```bash
+docker build -t ai-file-organizer .
+```
+
+See [Docker Documentation](docs/DOCKER.md) for detailed Docker usage.
+
+### Option 4: Pre-built Executables
+
+Download pre-built executables for your platform from the [Releases](https://github.com/rdar-lab/ai-file-organizer/releases) page:
+- Windows: `ai-file-organizer-windows.zip`
+- Linux: `ai-file-organizer-linux.tar.gz`
+- macOS: `ai-file-organizer-macos.tar.gz`
+
+No Python installation required!
+
 ## Quick Start
+
+### Using Pre-built Executables
+
+Download and extract the executable for your platform, then run:
+
+```bash
+# Linux/macOS
+./ai-file-organizer -i /path/to/input -o /path/to/output -l Documents Images Videos --api-key YOUR_KEY
+
+# Windows
+ai-file-organizer.exe -i C:\input -o C:\output -l Documents Images Videos --api-key YOUR_KEY
+```
+
+### Using Docker
+
+```bash
+docker run -v $(pwd)/input:/input -v $(pwd)/output:/output \
+  -e OPENAI_API_KEY=your-key \
+  ghcr.io/rdar-lab/ai-file-organizer:latest \
+  ai-file-organizer -i /input -o /output -l Documents Images Videos
+```
 
 ### CLI Usage
 
@@ -190,7 +232,12 @@ ai-file-organizer \
 
 ### Running Tests
 ```bash
-pytest tests/
+# Unit tests
+pytest tests/test_*.py -v
+
+# Live tests (requires Ollama)
+docker-compose up -d ollama
+pytest tests/test_live.py -v
 ```
 
 ### Running Tests with Coverage
@@ -198,14 +245,43 @@ pytest tests/
 pytest --cov=ai_file_organizer tests/
 ```
 
+### Building Executables
+```bash
+# Install PyInstaller
+pip install pyinstaller
+
+# Build for your platform
+./build_executables.sh
+
+# Or manually
+pyinstaller ai-file-organizer.spec --clean
+pyinstaller ai-file-organizer-gui.spec --clean
+```
+
+### Building Docker Image
+```bash
+docker build -t ai-file-organizer .
+
+# Test the image
+docker run --rm ai-file-organizer ai-file-organizer --help
+```
+
 ## Requirements
 
+### For Python Installation:
 - Python 3.8+
 - langchain
 - openai
 - python-magic
 - PySimpleGUI (for GUI)
 - pyyaml
+
+### For Docker:
+- Docker 20.10+
+- Docker Compose (optional)
+
+### For Executables:
+- No requirements! Just download and run
 
 ## License
 
