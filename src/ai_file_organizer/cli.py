@@ -80,6 +80,9 @@ def main():
 
     args = parser.parse_args()
 
+    ai_config = None
+    labels = None
+
     # Load configuration
     if args.config:
         config = load_config(args.config)
