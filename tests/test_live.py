@@ -117,8 +117,8 @@ def test_organize_with_local_llm(ollama_service, test_files):
         # Check that subdirectories were created
         for label in labels:
             label_dir = os.path.join(output_dir, label)
-            # At least some directories should exist
-            # (not all labels may have files)
+            # Subdirectories are created even if empty
+            assert os.path.exists(label_dir), f"Directory {label} should exist"
         
         # Verify at least some files were moved
         total_moved = sum(stats['categorization'].values())
@@ -181,7 +181,8 @@ def test_categorization_accuracy(ollama_service, test_files):
         stats = organizer.organize_files(test_files, output_dir, dry_run=False)
         
         # Check that at least some categorization occurred
-        assert len([k for k, v in stats['categorization'].items() if v > 0]) > 0
+        categories_with_files = [label for label, count in stats['categorization'].items() if count > 0]
+        assert len(categories_with_files) > 0, "At least one category should have files"
         
         # Verify files exist in output
         moved_files = []
