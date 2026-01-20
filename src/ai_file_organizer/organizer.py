@@ -25,6 +25,9 @@ class FileOrganizer:
         self.ai_facade = AIFacade(ai_config)
         self.file_analyzer = FileAnalyzer()
         self.labels = labels
+        
+        if 'Other' not in self.labels:
+            self.labels.append('Other')  # Ensure 'Other' category exists
 
     def organize_files(
         self, input_folder: str, output_folder: str, dry_run: bool = False
@@ -63,7 +66,7 @@ class FileOrganizer:
             "categorization": {label: 0 for label in self.labels},
         }
 
-        for root, dirs, files in os.walk(input_folder):
+        for root, _, files in os.walk(input_folder):
             for filename in files:
                 stats["total_files"] += 1
                 file_path = os.path.join(root, filename)
@@ -74,6 +77,10 @@ class FileOrganizer:
 
                     # Categorize using AI
                     category = self.ai_facade.categorize_file(file_info, self.labels)
+                    
+                    if category is None:
+                        logger.warning(f"AI returned no category for file {filename}, assigning to 'Other'")
+                        category = "Other"
 
                     # Move file to appropriate category folder
                     dest_dir = os.path.join(output_folder, category)

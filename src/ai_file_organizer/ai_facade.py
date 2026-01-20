@@ -1,10 +1,12 @@
 """AI facade module for LLM integration using langchain."""
 
 import os
+import logging
 from typing import Any, Dict
 
-from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
+
+logger = logging.getLogger(__name__)
 
 
 class AIFacade:
@@ -58,58 +60,63 @@ class AIFacade:
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
-    def categorize_file(self, file_info: Dict[str, Any], labels: list) -> str:
+    def categorize_file(self, file_info: dict, categories: list) -> str:
         """
         Categorize a file using the LLM.
-
         Args:
-            file_info: Dictionary containing file information
-            labels: List of possible category labels
-
+            file_info (dict): Information about the file.
+            categories (list): List of possible categories.
         Returns:
-            The category label chosen by the LLM
+            str: The category assigned by the LLM, or None if not confidently determined.
         """
-        # Update label map if labels changed
-        if not self._label_map or set(self._label_map.values()) != set(labels):
-            self._label_map = {label.lower(): label for label in labels}
+        # Improved prompt with one-shot example
+        example_file = {
+            "filename": "doc1.txt",
+            "file_path": "/input/doc1.txt",
+            "file_size": 34,
+            "file_type": ".txt",
+            "mime_type": "text/plain",
+            "is_executable": False,
+            "metadata": {
+                "created": 1768924483.5866325,
+                "modified": 1768924483.5866325,
+                "accessed": 1768924555.676632,
+                "mode": "0o100646",
+            },
+        }
+        example_categories = ["Documents", "Images", "Videos", "Other"]
+        example_category = "Documents"
 
-        system_prompt = f"""You are a file categorization assistant.
-    Your job is to categorize files into one of the following categories: {', '.join(labels)}.
-    Analyze the file information provided and choose the most appropriate category.
-    Respond with ONLY the category name, nothing else.
-"""
+        prompt = (
+            "You are an expert at organizing files. "
+            f"Given the following file information, choose the most appropriate category from the list of categories. "
+            "Return only the category name, and nothing else.\n"
+            "Example:\n"
+            f'Categories: {", ".join(example_categories)}\n'
+            f"File information: {example_file}\n"
+            f"Category: {example_category}\n"
+            "Now categorize this file:\n"
+            f'Categories: {", ".join(categories)}\n'
+            f"File information: {file_info}\n"
+            "Category:"
+        )
+        logger.info(f"LLM prompt: {prompt}")
+        raw_response = self.llm.invoke(prompt)
+        response = raw_response.content.strip()
+        logger.info(f"LLM response: {response}")
 
-        user_prompt = f"""File Information:
-    - Filename: {file_info.get('filename', 'Unknown')}
-    - File Type: {file_info.get('file_type', 'Unknown')}
-    - File Size: {file_info.get('file_size', 'Unknown')} bytes
-    - MIME Type: {file_info.get('mime_type', 'Unknown')}
-    - Is Executable: {file_info.get('is_executable', False)}
-"""
+        # Direct match
+        if response in categories:
+            return response
+        # Fallback: search for category names in the response (case-insensitive, whole word)
+        import re
 
-        if file_info.get("archive_contents"):
-            user_prompt += f"\nArchive Contents:\n{file_info['archive_contents']}"
-
-        if file_info.get("metadata"):
-            user_prompt += f"\nAdditional Metadata:\n{file_info['metadata']}"
-
-        user_prompt += f"\n\nChoose one category from: {', '.join(labels)}"
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt),
-        ]
-
-        response = self.llm.invoke(messages)
-        category = response.content.strip()
-
-        # Validate that the response is one of the labels
-        if category not in labels:
-            # Try case-insensitive match using the label map
-            category_lower = category.lower()
-            if category_lower in self._label_map:
-                return self._label_map[category_lower]
-            # Default to first label if no match
-            return labels[0]
-
-        return category
+        found = []
+        for cat in categories:
+            # Use word boundaries to avoid partial matches
+            if re.search(rf"\b{re.escape(cat)}\b", response, re.IGNORECASE):
+                found.append(cat)
+        if len(found) == 1:
+            return found[0]
+        # If none or multiple categories found, do nothing (return None)
+        return None
