@@ -97,7 +97,7 @@ class FileAnalyzer:
         try:
             if os.name == "nt":
                 # On Windows, check for executable extensions
-                executable_exts = {'.exe', '.bat', '.cmd', '.com', '.ps1'}
+                executable_exts = {".exe", ".bat", ".cmd", ".com", ".ps1"}
                 _, ext = os.path.splitext(file_path)
                 return ext.lower() in executable_exts
             else:
