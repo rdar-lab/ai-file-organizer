@@ -1,0 +1,95 @@
+"""File analysis and metadata extraction module."""
+
+import os
+import stat
+import zipfile
+import tarfile
+from typing import Dict, Any, Optional
+import magic
+
+
+class FileAnalyzer:
+    """Analyze files and extract metadata."""
+    
+    def __init__(self):
+        """Initialize the file analyzer."""
+        self.magic = magic.Magic(mime=True)
+    
+    def analyze_file(self, file_path: str) -> Dict[str, Any]:
+        """
+        Analyze a file and extract metadata.
+        
+        Args:
+            file_path: Path to the file to analyze
+            
+        Returns:
+            Dictionary containing file information
+        """
+        file_info = {
+            'filename': os.path.basename(file_path),
+            'file_path': file_path,
+            'file_size': os.path.getsize(file_path),
+            'file_type': self._get_file_extension(file_path),
+            'mime_type': self._get_mime_type(file_path),
+            'is_executable': self._is_executable(file_path),
+        }
+        
+        # Check if file is an archive and extract contents list
+        archive_contents = self._get_archive_contents(file_path)
+        if archive_contents:
+            file_info['archive_contents'] = archive_contents
+        
+        # Add file stats as metadata
+        file_stats = os.stat(file_path)
+        file_info['metadata'] = {
+            'created': file_stats.st_ctime,
+            'modified': file_stats.st_mtime,
+            'accessed': file_stats.st_atime,
+            'mode': oct(file_stats.st_mode),
+        }
+        
+        return file_info
+    
+    def _get_file_extension(self, file_path: str) -> str:
+        """Get file extension."""
+        _, ext = os.path.splitext(file_path)
+        return ext.lower() if ext else 'no_extension'
+    
+    def _get_mime_type(self, file_path: str) -> str:
+        """Get MIME type of the file."""
+        try:
+            return self.magic.from_file(file_path)
+        except Exception as e:
+            return 'unknown'
+    
+    def _is_executable(self, file_path: str) -> bool:
+        """Check if file is executable."""
+        try:
+            file_stats = os.stat(file_path)
+            return bool(file_stats.st_mode & stat.S_IXUSR)
+        except Exception:
+            return False
+    
+    def _get_archive_contents(self, file_path: str) -> Optional[str]:
+        """
+        Get list of files in an archive.
+        
+        Args:
+            file_path: Path to the archive file
+            
+        Returns:
+            String listing archive contents or None if not an archive
+        """
+        try:
+            if zipfile.is_zipfile(file_path):
+                with zipfile.ZipFile(file_path, 'r') as zf:
+                    files = zf.namelist()
+                    return '\n'.join(files[:50])  # Limit to first 50 files
+            elif tarfile.is_tarfile(file_path):
+                with tarfile.open(file_path, 'r') as tf:
+                    files = tf.getnames()
+                    return '\n'.join(files[:50])  # Limit to first 50 files
+        except Exception:
+            pass
+        
+        return None
