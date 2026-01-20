@@ -29,7 +29,11 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+*.spec.bak
+work/
+*.toc
+*.pkg
+*.exe.manifest
 
 # Unit test / coverage reports
 htmlcov/
@@ -66,3 +70,11 @@ Thumbs.db
 config.local.yml
 *.local.yml
 .env
+
+# Docker volumes
+input/
+output/
+
+# Build artifacts
+*.zip
+*.tar.gz
