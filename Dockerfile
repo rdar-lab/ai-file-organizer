@@ -1,5 +1,5 @@
-# Use Python 3.10 slim image as base
-FROM python:3.10-slim
+# Use Python 3.11 slim image as base
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY setup.py .
 COPY README.md .
+COPY docker_runner.py .
 
 # Install the package
 RUN pip install -e .
@@ -29,5 +30,5 @@ RUN mkdir -p /input /output
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Default command
-CMD ["ai-file-organizer", "--help"]
+# Default command - run in continuous mode with config file
+CMD ["python3", "/app/docker_runner.py"]

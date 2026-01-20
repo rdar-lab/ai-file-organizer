@@ -88,7 +88,7 @@ jobs:
         OLLAMA_BASE_URL: http://localhost:11434
         OLLAMA_MODEL: llama2
       run: |
-        pytest tests/test_live.py -v --tb=short
+        pytest tests/test_live.py -m live -v --tb=short
         
     - name: Run live tests with coverage
       if: success() || failure()
@@ -96,7 +96,7 @@ jobs:
         OLLAMA_BASE_URL: http://localhost:11434
         OLLAMA_MODEL: llama2
       run: |
-        pytest tests/test_live.py --cov=ai_file_organizer --cov-report=xml --cov-report=term
+        pytest tests/test_live.py -m live --cov=src/ai_file_organizer --cov-report=xml --cov-report=term
         
     - name: Upload coverage
       if: success()
