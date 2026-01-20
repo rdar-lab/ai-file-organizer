@@ -1,29 +1,18 @@
-# Example configuration file for AI File Organizer
-
 # AI/LLM Configuration
 ai:
-  # Provider: openai, azure, or local
-  provider: openai
-  
-  # Model name (e.g., gpt-3.5-turbo, gpt-4, llama2)
+  provider: openai  # openai, azure, or local
   model: gpt-3.5-turbo
-  
-  # Temperature for LLM responses (0.0 to 1.0)
-  # Lower values make output more focused and deterministic
   temperature: 0.3
-  
-  # API key for OpenAI or Azure
-  # You can also set this via environment variable: OPENAI_API_KEY or AZURE_OPENAI_API_KEY
   api_key: YOUR_API_KEY_HERE
   
-  # Azure-specific settings (uncomment if using Azure)
+  # For Azure
   # azure_endpoint: https://your-resource.openai.azure.com/
-  # deployment_name: your-deployment-name
+  # deployment_name: your-deployment
   
-  # Local LLM settings (uncomment if using local LLM)
+  # For Local LLM
   # base_url: http://localhost:8000/v1
 
-# Category labels for file organization
+# Category labels
 labels:
   - Documents
   - Images
@@ -32,3 +21,11 @@ labels:
   - Archives
   - Code
   - Other
+
+# Folder paths (for Docker)
+input_folder: /input
+output_folder: /output
+
+# Continuous mode settings
+continuous: false  # Set to true to run in continuous mode
+interval: 60  # Interval in seconds between scans (only used if continuous=true)

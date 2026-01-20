@@ -6,7 +6,10 @@ import shutil
 import time
 import pytest
 import requests
-from ai_file_organizer.organizer import FileOrganizer
+import subprocess
+
+# Mark all tests in this file as live tests
+pytestmark = pytest.mark.live
 
 
 def wait_for_ollama(base_url="http://localhost:11434", timeout=60):

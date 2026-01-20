@@ -63,6 +63,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: dist/${{ matrix.artifact_name }}
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -133,21 +134,11 @@ jobs:
         
     - name: Run tests
       run: |
-        pytest tests/ --cov=ai_file_organizer --cov-report=xml --cov-report=term
+        pytest tests/ -m "not live" --cov=src/ai_file_organizer --cov-report=xml --cov-report=term
         
     - name: Build package
       run: |
         python -m build
-        
-    - name: Upload to release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          dist/*.whl
-          dist/*.tar.gz
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Publish to PyPI
       env:

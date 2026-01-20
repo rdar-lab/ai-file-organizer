@@ -1,4 +1,4 @@
-# API Reference
+# Architecture Reference
 
 ## Core Modules
 
