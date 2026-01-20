@@ -1,14 +1,15 @@
 """CLI interface for AI File Organizer."""
 
 import argparse
-import sys
 import logging
+import sys
 
 import yaml
 
 from .organizer import FileOrganizer
 
 logger = logging.getLogger(__name__)
+
 
 def load_config(config_path: str) -> dict:
     """Load configuration from YAML file."""
@@ -23,7 +24,7 @@ def main():
         format="%(asctime)s [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-    
+
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description="AI File Organizer - Organize files using AI/LLM models"
@@ -121,8 +122,9 @@ def main():
     # Create organizer and process files
     try:
         organizer = FileOrganizer(ai_config, labels)
+        masked_ai_config = {k: v for k, v in ai_config.items() if k != "api_key"}
         logger.info("Starting file organization...")
-        logger.info(f"Using AI Config: { {k: v for k, v in ai_config.items() if k != 'api_key'} }")
+        logger.info(f"Using AI Config: {masked_ai_config}")
         logger.info(f"Input folder: {args.input}")
         logger.info(f"Output folder: {args.output}")
         logger.info(f"Labels: {', '.join(labels)}")

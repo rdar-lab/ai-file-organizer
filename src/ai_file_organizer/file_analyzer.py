@@ -20,7 +20,9 @@ class FileAnalyzer:
         try:
             self.magic = magic.Magic(mime=True)
         except Exception as e:
-            logger.warning(f"Failed to initialize python-magic: {e}. MIME type detection will be limited.")
+            logger.warning(
+                f"Failed to initialize python-magic: {e}. MIME type detection will be limited."
+            )
             self.magic = None
 
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
@@ -69,22 +71,22 @@ class FileAnalyzer:
             # Fallback to basic extension-based detection
             ext = self._get_file_extension(file_path).lower()
             mime_map = {
-                '.txt': 'text/plain',
-                '.pdf': 'application/pdf',
-                '.jpg': 'image/jpeg',
-                '.jpeg': 'image/jpeg',
-                '.png': 'image/png',
-                '.gif': 'image/gif',
-                '.zip': 'application/zip',
-                '.tar': 'application/x-tar',
-                '.gz': 'application/gzip',
-                '.doc': 'application/msword',
-                '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                '.xls': 'application/vnd.ms-excel',
-                '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ".txt": "text/plain",
+                ".pdf": "application/pdf",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".zip": "application/zip",
+                ".tar": "application/x-tar",
+                ".gz": "application/gzip",
+                ".doc": "application/msword",
+                ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".xls": "application/vnd.ms-excel",
+                ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             }
-            return mime_map.get(ext, 'application/octet-stream')
-        
+            return mime_map.get(ext, "application/octet-stream")
+
         try:
             return self.magic.from_file(file_path)
         except (IOError, OSError):

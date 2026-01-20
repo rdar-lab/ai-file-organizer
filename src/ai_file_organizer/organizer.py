@@ -25,9 +25,9 @@ class FileOrganizer:
         self.ai_facade = AIFacade(ai_config)
         self.file_analyzer = FileAnalyzer()
         self.labels = labels
-        
-        if 'Other' not in self.labels:
-            self.labels.append('Other')  # Ensure 'Other' category exists
+
+        if "Other" not in self.labels:
+            self.labels.append("Other")  # Ensure 'Other' category exists
 
     def organize_files(
         self, input_folder: str, output_folder: str, dry_run: bool = False
@@ -77,9 +77,11 @@ class FileOrganizer:
 
                     # Categorize using AI
                     category = self.ai_facade.categorize_file(file_info, self.labels)
-                    
+
                     if category is None:
-                        logger.warning(f"AI returned no category for file {filename}, assigning to 'Other'")
+                        logger.warning(
+                            f"AI returned no category for file {filename}, assigning to 'Other'"
+                        )
                         category = "Other"
 
                     # Move file to appropriate category folder
