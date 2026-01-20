@@ -13,11 +13,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
-    command: >
-      ai-file-organizer
-      -i /input
-      -o /output
-      -c /app/config.yml
+    depends_on:
+      - ollama
 
   # Local LLM service using Ollama for testing
   ollama:
