@@ -3,7 +3,7 @@
 import os
 from typing import Optional, Dict, Any
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 
 class AIFacade:
