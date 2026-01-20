@@ -57,14 +57,15 @@ class TestFileAnalyzer:
         analyzer = FileAnalyzer()
 
         # 1. Unix-style executable (chmod +x)
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-            f.write('echo test')
-            unix_exec_path = f.name
-        try:
-            os.chmod(unix_exec_path, 0o755)
-            assert analyzer._is_executable(unix_exec_path) is True
-        finally:
-            os.unlink(unix_exec_path)
+        if os.name != 'nt':  # Skip on Windows
+            with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+                f.write('echo test')
+                unix_exec_path = f.name
+            try:
+                os.chmod(unix_exec_path, 0o755)
+                assert analyzer._is_executable(unix_exec_path) is True
+            finally:
+                os.unlink(unix_exec_path)
 
         # 2. Windows-style executable (by extension)
         with tempfile.NamedTemporaryFile(mode='w', suffix='.bat', delete=False) as f:
