@@ -228,3 +228,112 @@ class TestFileAnalyzer:
                     assert file_info['executable_metadata'] == sample_metadata
         finally:
             os.unlink(temp_path)
+    
+    def test_calculate_hashes(self):
+        """Test hash calculation for files."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write('test content for hashing')
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                analyzer = FileAnalyzer()
+                hashes = analyzer._calculate_hashes(temp_path)
+                
+                assert hashes is not None
+                assert 'md5' in hashes
+                assert 'sha1' in hashes
+                assert 'sha256' in hashes
+                assert len(hashes['md5']) == 32  # MD5 is 32 hex chars
+                assert len(hashes['sha1']) == 40  # SHA1 is 40 hex chars
+                assert len(hashes['sha256']) == 64  # SHA256 is 64 hex chars
+        finally:
+            os.unlink(temp_path)
+    
+    def test_get_pdf_metadata_no_pypdf2(self):
+        """Test PDF metadata extraction when PyPDF2 is not available."""
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.pdf', delete=False) as f:
+            f.write(b'%PDF-1.4\n')
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.PYPDF2_AVAILABLE', False):
+                with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                    analyzer = FileAnalyzer()
+                    metadata = analyzer._get_pdf_metadata(temp_path)
+                    
+                    assert metadata is None
+        finally:
+            os.unlink(temp_path)
+    
+    def test_get_text_content(self):
+        """Test text content extraction."""
+        content = "First sentence. Second sentence. Third sentence. Fourth sentence."
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write(content)
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                analyzer = FileAnalyzer()
+                text = analyzer._get_text_content(temp_path, max_sentences=2)
+                
+                assert text is not None
+                assert 'First sentence' in text
+                assert 'Second sentence' in text
+        finally:
+            os.unlink(temp_path)
+    
+    def test_get_image_metadata_no_pillow(self):
+        """Test image metadata extraction when Pillow is not available."""
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.jpg', delete=False) as f:
+            f.write(b'\xff\xd8\xff')  # JPEG header
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.PILLOW_AVAILABLE', False):
+                with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                    analyzer = FileAnalyzer()
+                    metadata = analyzer._get_image_metadata(temp_path)
+                    
+                    assert metadata is None
+        finally:
+            os.unlink(temp_path)
+    
+    def test_get_video_metadata_no_ffmpeg(self):
+        """Test video metadata extraction when ffmpeg is not available."""
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.mp4', delete=False) as f:
+            f.write(b'\x00\x00\x00\x20ftyp')  # MP4 header
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.FFMPEG_AVAILABLE', False):
+                with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                    analyzer = FileAnalyzer()
+                    metadata = analyzer._get_video_metadata(temp_path)
+                    
+                    assert metadata is None
+        finally:
+            os.unlink(temp_path)
+    
+    def test_analyze_file_includes_hashes(self):
+        """Test that analyze_file includes hashes for all files."""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write('test content')
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.magic.Magic') as mock_magic:
+                mock_magic_instance = Mock()
+                mock_magic_instance.from_file.return_value = 'text/plain'
+                mock_magic.return_value = mock_magic_instance
+                
+                analyzer = FileAnalyzer()
+                file_info = analyzer.analyze_file(temp_path)
+                
+                assert 'hashes' in file_info
+                assert 'md5' in file_info['hashes']
+                assert 'sha1' in file_info['hashes']
+                assert 'sha256' in file_info['hashes']
+        finally:
+            os.unlink(temp_path)
