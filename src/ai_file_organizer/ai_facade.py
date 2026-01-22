@@ -54,9 +54,7 @@ class AIFacade:
             return ChatGoogleGenerativeAI(
                 model=self.config.get("model", "gemini-pro"),
                 temperature=self.config.get("temperature", 0.3),
-                google_api_key=self.config.get(
-                    "api_key", os.getenv("GOOGLE_API_KEY")
-                ),
+                google_api_key=self.config.get("api_key", os.getenv("GOOGLE_API_KEY")),
             )
         elif self.provider == "local":
             # For local LLMs (Llama, etc.)
