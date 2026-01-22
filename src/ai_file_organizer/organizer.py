@@ -1,9 +1,10 @@
 """Core file organizer module."""
 
+import csv
 import logging
 import os
 import shutil
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 
 from .ai_facade import AIFacade
 from .file_analyzer import FileAnalyzer
@@ -40,7 +41,7 @@ class FileOrganizer:
             self.labels["Other"] = []
 
     def organize_files(
-        self, input_folder: str, output_folder: str, dry_run: bool = False
+        self, input_folder: str, output_folder: str, dry_run: bool = False, csv_report_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Organize files from input folder to output folder.
@@ -49,6 +50,7 @@ class FileOrganizer:
             input_folder: Source folder containing files to organize
             output_folder: Destination folder for organized files
             dry_run: If True, don't actually move files, just show what would happen
+            csv_report_path: Optional path to save CSV report of file classification
 
         Returns:
             Dictionary with statistics about the organization
@@ -80,6 +82,9 @@ class FileOrganizer:
             "failed": 0,
             "categorization": {label: 0 for label in self.labels},
         }
+
+        # CSV report data
+        csv_data = []
 
         for root, _, files in os.walk(input_folder):
             for filename in files:
@@ -146,10 +151,31 @@ class FileOrganizer:
                     print(message)
                     logger.info(message)
 
+                    # Collect CSV data
+                    if csv_report_path:
+                        csv_data.append({
+                            "file_name": filename,
+                            "file_type": file_info.get("file_type", "unknown"),
+                            "file_size": file_info.get("file_size", 0),
+                            "decided_label": category
+                        })
+
                 except (IOError, OSError, RuntimeError) as e:
                     stats["failed"] += 1
                     error_msg = f"Error processing {filename}: {str(e)}"
                     print(error_msg)
                     logger.error(error_msg)
+
+        # Write CSV report if requested
+        if csv_report_path and csv_data:
+            try:
+                with open(csv_report_path, "w", newline="", encoding="utf-8") as csvfile:
+                    fieldnames = ["file_name", "file_type", "file_size", "decided_label"]
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(csv_data)
+                logger.info(f"CSV report saved to: {csv_report_path}")
+            except (IOError, OSError) as e:
+                logger.error(f"Failed to write CSV report: {str(e)}")
 
         return stats

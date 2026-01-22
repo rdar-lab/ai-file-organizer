@@ -96,6 +96,105 @@ class TestFileOrganizer:
             shutil.rmtree(input_dir, ignore_errors=True)
             shutil.rmtree(output_dir, ignore_errors=True)
     
+    def test_organize_files_with_csv_report(self):
+        """Test organize_files with CSV report generation."""
+        ai_config = {
+            'provider': 'openai',
+            'model': 'gpt-3.5-turbo',
+            'api_key': 'test-key'
+        }
+        labels = ['Documents', 'Images', 'Code']
+        
+        # Create temporary directories
+        input_dir = tempfile.mkdtemp()
+        output_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(output_dir, 'report.csv')
+        
+        try:
+            # Create test files
+            test_file1 = os.path.join(input_dir, 'test1.txt')
+            test_file2 = os.path.join(input_dir, 'image.jpg')
+            test_file3 = os.path.join(input_dir, 'script.py')
+            
+            with open(test_file1, 'w') as f:
+                f.write('test content 1')
+            with open(test_file2, 'w') as f:
+                f.write('test content 2')
+            with open(test_file3, 'w') as f:
+                f.write('print("hello")')
+            
+            # Mock AI facade and file analyzer
+            mock_ai_facade = Mock()
+            # Return values based on the actual filename being categorized
+            def categorize_side_effect(file_info, labels):
+                filename = file_info['filename']
+                if filename == 'test1.txt':
+                    return 'Documents'
+                elif filename == 'image.jpg':
+                    return 'Images'
+                elif filename == 'script.py':
+                    return 'Code'
+                return 'Other'
+            
+            mock_ai_facade.categorize_file.side_effect = categorize_side_effect
+            
+            mock_file_analyzer = Mock()
+            # Return values based on the actual file path
+            def analyze_side_effect(file_path):
+                filename = os.path.basename(file_path)
+                if filename == 'test1.txt':
+                    return {'filename': 'test1.txt', 'file_type': '.txt', 'file_size': 14, 
+                            'mime_type': 'text/plain', 'is_executable': False}
+                elif filename == 'image.jpg':
+                    return {'filename': 'image.jpg', 'file_type': '.jpg', 'file_size': 14,
+                            'mime_type': 'image/jpeg', 'is_executable': False}
+                elif filename == 'script.py':
+                    return {'filename': 'script.py', 'file_type': '.py', 'file_size': 15,
+                            'mime_type': 'text/x-python', 'is_executable': False}
+            
+            mock_file_analyzer.analyze_file.side_effect = analyze_side_effect
+            
+            with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
+                with patch('ai_file_organizer.organizer.FileAnalyzer', return_value=mock_file_analyzer):
+                    organizer = FileOrganizer(ai_config, labels)
+                    stats = organizer.organize_files(input_dir, output_dir, dry_run=True, csv_report_path=csv_file)
+                    
+                    # Check stats
+                    assert stats['total_files'] == 3
+                    assert stats['processed'] == 3
+                    assert stats['failed'] == 0
+                    
+                    # CSV file should exist
+                    assert os.path.exists(csv_file)
+                    
+                    # Read and verify CSV content
+                    import csv
+                    with open(csv_file, 'r', encoding='utf-8') as f:
+                        reader = csv.DictReader(f)
+                        rows = list(reader)
+                        
+                        assert len(rows) == 3
+                        
+                        # Check headers
+                        assert set(rows[0].keys()) == {'file_name', 'file_type', 'file_size', 'decided_label'}
+                        
+                        # Check data - convert to dict for easier verification
+                        rows_by_name = {row['file_name']: row for row in rows}
+                        
+                        assert 'test1.txt' in rows_by_name
+                        assert rows_by_name['test1.txt']['file_type'] == '.txt'
+                        assert rows_by_name['test1.txt']['file_size'] == '14'
+                        
+                        assert 'image.jpg' in rows_by_name
+                        assert rows_by_name['image.jpg']['file_type'] == '.jpg'
+                        
+                        assert 'script.py' in rows_by_name
+                        assert rows_by_name['script.py']['file_type'] == '.py'
+        
+        finally:
+            shutil.rmtree(input_dir, ignore_errors=True)
+            shutil.rmtree(output_dir, ignore_errors=True)
+    
     def test_organize_files_actual_move(self):
         """Test organize_files with actual file movement."""
         ai_config = {

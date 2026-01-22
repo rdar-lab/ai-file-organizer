@@ -241,6 +241,9 @@ class TestDockerIntegration:
         # For dry run, we'll override the command
         files_before = set(os.listdir(input_dir))
         
+        # CSV report path
+        csv_report = os.path.join(output_dir, 'classification_report.csv')
+        
         # Build the image
         print("Building ai-file-organizer Docker image...")
         returncode = self.run_command(
@@ -265,7 +268,7 @@ class TestDockerIntegration:
             '-l Documents Images Code Data Other '
             '--provider local --model tinyllama '
             '--base-url http://ollama:11434/v1 '
-            '--api-key not-needed --dry-run',
+            f'--api-key not-needed --dry-run --csv-report /output/classification_report.csv',
             cwd=repo_root,
             timeout=300
         )
@@ -274,7 +277,34 @@ class TestDockerIntegration:
         files_after = set(os.listdir(input_dir))
         assert files_before == files_after, "Files were moved in dry-run mode"
         
-        print("Dry-run test passed - files were not moved")
+        # CSV report should exist
+        assert os.path.exists(csv_report), "CSV report was not created"
+        
+        # Verify CSV content
+        import csv
+        with open(csv_report, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+            
+            print(f"CSV report contains {len(rows)} rows")
+            
+            # Should have rows for all test files
+            assert len(rows) > 0, "CSV report is empty"
+            
+            # Check headers
+            expected_headers = {'file_name', 'file_type', 'file_size', 'decided_label'}
+            assert set(rows[0].keys()) == expected_headers, f"CSV headers mismatch: {set(rows[0].keys())}"
+            
+            # Verify all rows have values
+            for row in rows:
+                assert row['file_name'], "file_name is empty"
+                assert row['file_type'], "file_type is empty"
+                assert row['file_size'], "file_size is empty"
+                assert row['decided_label'], "decided_label is empty"
+            
+            print(f"CSV report validation successful")
+        
+        print("Dry-run test passed - files were not moved and CSV report was generated")
 
 
     def test_cli_organizes_files(self, test_workspace):
