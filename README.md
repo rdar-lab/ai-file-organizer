@@ -6,6 +6,7 @@ An intelligent file organization tool that uses AI/LLM models to automatically c
 
 - 🤖 **AI-Powered Categorization**: Uses advanced language models (GPT, Azure GPT, Google Gemini, Llama) to intelligently categorize files
 - 📁 **Automatic Organization**: Creates subdirectories for each category and moves files automatically
+- 🏗️ **Hierarchical Labels**: Support for sub-categories with automatic nested directory creation (e.g., Documents/Work, Images/Screenshots)
 - 🔍 **Smart File Analysis**: Extracts file metadata including type, size, executable status, and archive contents
 - 🎨 **Dual Interface**: Both CLI and GUI interfaces available
 - 🔧 **Flexible Configuration**: Support for multiple LLM providers (OpenAI, Azure, Google Gemini, Local/Llama)
@@ -129,7 +130,7 @@ ai:
   # For Local LLM
   # base_url: http://localhost:8000/v1
 
-# Category labels
+# Category labels - Simple list format (flat structure)
 labels:
   - Documents
   - Images
@@ -138,6 +139,67 @@ labels:
   - Archives
   - Code
   - Other
+
+# OR use hierarchical format with sub-categories
+# labels:
+#   Documents:
+#     - Work
+#     - Personal
+#     - Financial
+#   Images:
+#     - Photos
+#     - Screenshots
+#     - Designs
+#   Videos: []  # No sub-categories
+#   Audio: []
+#   Archives: []
+#   Code:
+#     - Python
+#     - JavaScript
+#     - Other Code
+#   Other: []
+```
+
+#### Hierarchical Labels (Sub-Categories)
+
+The tool now supports hierarchical labels with sub-categories. When using hierarchical labels:
+
+- Files can be categorized into both a main category and a sub-category (e.g., "Documents/Work")
+- The AI will automatically choose the most specific sub-category when applicable
+- Files are organized into nested directories based on the hierarchy
+- Labels without sub-categories can be specified with an empty list `[]`
+
+**Example with hierarchical labels:**
+
+```yaml
+labels:
+  Documents:
+    - Work
+    - Personal
+    - Financial
+  Images:
+    - Photos
+    - Screenshots
+  Code:
+    - Python
+    - JavaScript
+  Other: []
+```
+
+This will create directory structures like:
+```
+output/
+├── Documents/
+│   ├── Work/
+│   ├── Personal/
+│   └── Financial/
+├── Images/
+│   ├── Photos/
+│   └── Screenshots/
+├── Code/
+│   ├── Python/
+│   └── JavaScript/
+└── Other/
 ```
 
 ### Supported LLM Providers
@@ -230,7 +292,39 @@ ai-file-organizer \
   -c config.yml
 ```
 
-### Example 3: Use Azure OpenAI
+### Example 3: Use Hierarchical Labels with Config File
+Create a `config.yml` with hierarchical labels:
+```yaml
+ai:
+  provider: openai
+  model: gpt-3.5-turbo
+  api_key: YOUR_API_KEY
+
+labels:
+  Documents:
+    - Work
+    - Personal
+    - Financial
+  Images:
+    - Photos
+    - Screenshots
+  Code:
+    - Python
+    - JavaScript
+  Other: []
+```
+
+Run the organizer:
+```bash
+ai-file-organizer \
+  -i ~/Downloads \
+  -o ~/OrganizedFiles \
+  -c config.yml
+```
+
+Files will be organized into nested directories like `Documents/Work/`, `Images/Photos/`, etc.
+
+### Example 4: Use Azure OpenAI
 ```bash
 ai-file-organizer \
   -i ./input \
