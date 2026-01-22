@@ -18,7 +18,7 @@ except ImportError:
     PEFILE_AVAILABLE = False
 
 try:
-    import PyPDF2
+    from pypdf import PdfReader
     PYPDF2_AVAILABLE = True
 except ImportError:
     PYPDF2_AVAILABLE = False
@@ -305,12 +305,12 @@ class FileAnalyzer:
             Dictionary containing PDF metadata or None if extraction failed
         """
         if not PYPDF2_AVAILABLE:
-            logger.debug("PyPDF2 library not available, skipping PDF metadata extraction")
+            logger.debug("pypdf library not available, skipping PDF metadata extraction")
             return None
 
         try:
             with open(file_path, "rb") as f:
-                pdf_reader = PyPDF2.PdfReader(f)
+                pdf_reader = PdfReader(f)
                 metadata = {}
 
                 # Extract document information
@@ -340,12 +340,12 @@ class FileAnalyzer:
             String containing the first few sentences or None if extraction failed
         """
         if not PYPDF2_AVAILABLE:
-            logger.debug("PyPDF2 library not available, skipping PDF content extraction")
+            logger.debug("pypdf library not available, skipping PDF content extraction")
             return None
 
         try:
             with open(file_path, "rb") as f:
-                pdf_reader = PyPDF2.PdfReader(f)
+                pdf_reader = PdfReader(f)
                 
                 # Extract text from first few pages
                 text = ""
