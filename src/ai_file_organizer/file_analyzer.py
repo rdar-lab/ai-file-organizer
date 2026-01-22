@@ -3,6 +3,7 @@
 import hashlib
 import logging
 import os
+import re
 import stat
 import subprocess
 import tarfile
@@ -356,7 +357,6 @@ class FileAnalyzer:
                 # Get first few sentences
                 if text:
                     # Simple sentence splitting (split by '. ', '! ', '? ')
-                    import re
                     sentences = re.split(r'[.!?]\s+', text.strip())
                     sentences = [s.strip() for s in sentences if s.strip()]
                     return ' '.join(sentences[:max_sentences])
@@ -383,7 +383,6 @@ class FileAnalyzer:
                 
                 if text:
                     # Simple sentence splitting
-                    import re
                     sentences = re.split(r'[.!?]\s+', text.strip())
                     sentences = [s.strip() for s in sentences if s.strip()]
                     return ' '.join(sentences[:max_sentences])
