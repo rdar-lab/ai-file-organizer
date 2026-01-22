@@ -112,7 +112,8 @@ class FileOrganizer:
                         main_category = "Other"
                     
                     # Build destination directory path
-                    dest_dir = os.path.join(output_folder, category.replace("/", os.sep))
+                    category_parts = category.split("/")
+                    dest_dir = os.path.join(output_folder, *category_parts)
                     
                     # Create destination directory if it doesn't exist (for dry run or if missed)
                     if not dry_run and not os.path.exists(dest_dir):

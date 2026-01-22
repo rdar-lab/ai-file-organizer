@@ -148,6 +148,9 @@ class AIFacade:
         # Validate response against available categories
         import re
         
+        # Get filename for better logging
+        filename = file_info.get('filename', 'unknown')
+        
         # Try direct match first (case-sensitive)
         if main_category in categories_dict:
             if sub_category:
@@ -156,7 +159,7 @@ class AIFacade:
                     return f"{main_category}/{sub_category}"
                 else:
                     # Sub-category not found, return just main category
-                    logger.warning(f"Sub-category '{sub_category}' not found in '{main_category}', using main category only")
+                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}', using main category only")
                     return main_category
             return main_category
         
@@ -169,7 +172,7 @@ class AIFacade:
                         if sub_cat.lower() == sub_category.lower():
                             return f"{cat}/{sub_cat}"
                     # Sub-category not found, return just main category
-                    logger.warning(f"Sub-category '{sub_category}' not found in '{cat}', using main category only")
+                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{cat}', using main category only")
                 return cat
         
         # Fallback: search for category names in the response (whole word)
