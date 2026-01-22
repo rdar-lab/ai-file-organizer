@@ -1,6 +1,6 @@
 # AI/LLM Configuration
 ai:
-  provider: openai  # openai, azure, or local
+  provider: openai  # openai, azure, google, or local
   model: gpt-3.5-turbo
   temperature: 0.3
   api_key: YOUR_API_KEY_HERE
@@ -8,6 +8,10 @@ ai:
   # For Azure
   # azure_endpoint: https://your-resource.openai.azure.com/
   # deployment_name: your-deployment
+  
+  # For Google Gemini
+  # model: gemini-pro
+  # api_key: YOUR_GOOGLE_API_KEY
   
   # For Local LLM
   # base_url: http://localhost:8000/v1

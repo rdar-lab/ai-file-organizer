@@ -39,7 +39,7 @@ def main():
         [
             sg.Text("Provider:", size=(15, 1)),
             sg.Combo(
-                ["openai", "azure", "local"],
+                ["openai", "azure", "google", "local"],
                 default_value="openai",
                 key="provider",
                 size=(20, 1),
