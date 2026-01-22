@@ -186,6 +186,7 @@ ai-file-organizer -i input -o output \
    - File size and type
    - MIME type
    - Executable status
+   - Executable metadata (for Windows PE files: description, publisher, version info)
    - Archive contents (for ZIP, TAR files)
    - File metadata (timestamps, permissions)
 
