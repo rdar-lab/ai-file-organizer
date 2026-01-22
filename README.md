@@ -92,6 +92,15 @@ ai-file-organizer -i /path/to/input -o /path/to/output \
   --dry-run
 ```
 
+Generate a CSV report of file classification (useful with dry run):
+```bash
+ai-file-organizer -i /path/to/input -o /path/to/output \
+  -l Documents Images Videos \
+  --api-key YOUR_API_KEY \
+  --dry-run \
+  --csv-report /path/to/report.csv
+```
+
 ### GUI Usage
 
 Launch the graphical interface:
@@ -270,6 +279,7 @@ ai-file-organizer -i input -o output \
 --base-url           Base URL for local LLM (for local provider)
 --temperature        Temperature for LLM (default: 0.3)
 --dry-run            Perform a dry run without actually moving files
+--csv-report         Path to save CSV report of file classification (useful with --dry-run)
 ```
 
 ## Examples
@@ -335,6 +345,23 @@ ai-file-organizer \
   --azure-endpoint https://your-resource.openai.azure.com/ \
   -l Work Personal Projects Archives
 ```
+
+### Example 5: Dry Run with CSV Report
+```bash
+ai-file-organizer \
+  -i ~/Downloads \
+  -o ~/OrganizedFiles \
+  -l Documents Images Videos Code Other \
+  --api-key YOUR_API_KEY \
+  --dry-run \
+  --csv-report ~/classification_report.csv
+```
+
+This will analyze all files without moving them and generate a CSV report containing:
+- `file_name`: Name of the file
+- `file_type`: File extension
+- `file_size`: Size in bytes
+- `decided_label`: The category assigned by the AI
 
 ## Development
 
