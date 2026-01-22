@@ -183,26 +183,28 @@ class FileAnalyzer:
 
         try:
             pe = pefile.PE(file_path, fast_load=True)
-            pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']])
+            try:
+                pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']])
 
-            metadata = {}
+                metadata = {}
 
-            # Extract version information if available
-            if hasattr(pe, 'FileInfo') and pe.FileInfo:
-                for fileinfo in pe.FileInfo:
-                    if fileinfo.Key == b'StringFileInfo':
-                        for st in fileinfo.StringTable:
-                            for entry in st.entries.items():
-                                key = entry[0].decode('utf-8', errors='ignore')
-                                value = entry[1].decode('utf-8', errors='ignore')
-                                # Common version info fields
-                                if key in ['FileDescription', 'ProductName', 'CompanyName', 
-                                          'FileVersion', 'ProductVersion', 'LegalCopyright',
-                                          'OriginalFilename', 'InternalName']:
-                                    metadata[key] = value
+                # Extract version information if available
+                if hasattr(pe, 'FileInfo') and pe.FileInfo:
+                    for fileinfo in pe.FileInfo:
+                        if fileinfo.Key == b'StringFileInfo':
+                            for st in fileinfo.StringTable:
+                                for entry in st.entries.items():
+                                    key = entry[0].decode('utf-8', errors='ignore')
+                                    value = entry[1].decode('utf-8', errors='ignore')
+                                    # Common version info fields
+                                    if key in ['FileDescription', 'ProductName', 'CompanyName', 
+                                              'FileVersion', 'ProductVersion', 'LegalCopyright',
+                                              'OriginalFilename', 'InternalName']:
+                                        metadata[key] = value
 
-            pe.close()
-            return metadata if metadata else None
+                return metadata if metadata else None
+            finally:
+                pe.close()
 
         except (pefile.PEFormatError, OSError, IOError) as e:
             logger.debug(f"Failed to parse PE file {file_path}: {str(e)}")
