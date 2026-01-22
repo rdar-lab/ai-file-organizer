@@ -23,7 +23,8 @@ class TestFileOrganizer:
         with patch('ai_file_organizer.organizer.AIFacade'):
             with patch('ai_file_organizer.organizer.FileAnalyzer'):
                 organizer = FileOrganizer(ai_config, labels)
-                assert organizer.labels == labels
+                # Labels are now stored as dict internally
+                assert organizer.labels == {'Documents': [], 'Images': [], 'Videos': [], 'Other': []}
     
     def test_organize_files_invalid_input(self):
         """Test organize_files with invalid input folder."""

@@ -17,14 +17,36 @@ ai:
   # base_url: http://localhost:8000/v1
 
 # Category labels
+# Simple list format (flat labels):
+# labels:
+#   - Documents
+#   - Images
+#   - Videos
+#   - Audio
+#   - Archives
+#   - Code
+#   - Other
+
+# Hierarchical format (labels with sub-labels):
+# Use a dictionary where keys are parent labels and values are lists of sub-labels
+# Labels without sub-labels can be included as simple strings
 labels:
-  - Documents
-  - Images
-  - Videos
-  - Audio
-  - Archives
-  - Code
-  - Other
+  Documents:
+    - Work
+    - Personal
+    - Financial
+  Images:
+    - Photos
+    - Screenshots
+    - Designs
+  Videos: []  # No sub-labels for Videos
+  Audio: []   # No sub-labels for Audio
+  Archives: []
+  Code:
+    - Python
+    - JavaScript
+    - Other Code
+  Other: []
 
 # Folder paths (for Docker)
 input_folder: /input
