@@ -8,6 +8,23 @@ from unittest.mock import Mock, patch
 from ai_file_organizer.file_analyzer import FileAnalyzer
 
 
+def create_minimal_pe_file():
+    """
+    Create a minimal PE file for testing.
+    
+    Returns a file handle with a basic PE structure:
+    - DOS header starting with 'MZ' magic bytes
+    - PE header offset at 0x3c pointing to 0x40
+    - PE signature 'PE\x00\x00' at offset 0x40
+    
+    Total size: 64 bytes (sufficient for pefile to recognize as PE format)
+    """
+    f = tempfile.NamedTemporaryFile(mode='wb', suffix='.exe', delete=False)
+    # Create minimal PE header (64 bytes total)
+    f.write(b'MZ' + b'\x00' * 62)  # DOS header with MZ magic
+    return f
+
+
 class TestFileAnalyzer:
     """Test FileAnalyzer class."""
     
@@ -147,5 +164,67 @@ class TestFileAnalyzer:
                 contents = analyzer._get_archive_contents(temp_path)
                 
                 assert contents is None
+        finally:
+            os.unlink(temp_path)
+
+    def test_get_executable_metadata_no_pefile(self):
+        """Test executable metadata extraction when pefile is not available."""
+        f = create_minimal_pe_file()
+        temp_path = f.name
+        f.close()
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.PEFILE_AVAILABLE', False):
+                with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                    analyzer = FileAnalyzer()
+                    metadata = analyzer._get_executable_metadata(temp_path)
+                    
+                    assert metadata is None
+        finally:
+            os.unlink(temp_path)
+    
+    def test_get_executable_metadata_invalid_pe(self):
+        """Test executable metadata extraction with invalid PE file."""
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.exe', delete=False) as f:
+            # Create an invalid PE file
+            f.write(b'Not a PE file')
+            temp_path = f.name
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.magic.Magic'):
+                analyzer = FileAnalyzer()
+                metadata = analyzer._get_executable_metadata(temp_path)
+                
+                # Should return None for invalid PE files
+                assert metadata is None
+        finally:
+            os.unlink(temp_path)
+    
+    def test_analyze_file_with_executable_metadata(self):
+        """Test that analyze_file includes executable_metadata when available."""
+        f = create_minimal_pe_file()
+        temp_path = f.name
+        f.close()
+        
+        try:
+            with patch('ai_file_organizer.file_analyzer.magic.Magic') as mock_magic:
+                mock_magic_instance = Mock()
+                mock_magic_instance.from_file.return_value = 'application/x-executable'
+                mock_magic.return_value = mock_magic_instance
+                
+                analyzer = FileAnalyzer()
+                
+                # Mock the _get_executable_metadata method to return sample data
+                sample_metadata = {
+                    'FileDescription': 'Test Application',
+                    'CompanyName': 'Test Company',
+                    'FileVersion': '1.0.0.0'
+                }
+                
+                with patch.object(analyzer, '_get_executable_metadata', return_value=sample_metadata):
+                    file_info = analyzer.analyze_file(temp_path)
+                    
+                    assert 'executable_metadata' in file_info
+                    assert file_info['executable_metadata'] == sample_metadata
         finally:
             os.unlink(temp_path)
