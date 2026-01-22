@@ -425,7 +425,7 @@ class FileAnalyzer:
                     if isinstance(value, bytes):
                         try:
                             value = value.decode('utf-8', errors='ignore')
-                        except:
+                        except (UnicodeDecodeError, AttributeError):
                             value = str(value)
                     
                     # Handle special tags
@@ -461,7 +461,7 @@ class FileAnalyzer:
             return None
 
         try:
-            # Try using ffmpeg via command line as fallback
+            # Use ffmpeg-python library to probe video file
             probe = ffmpeg.probe(file_path)
             
             metadata = {}
@@ -509,14 +509,21 @@ class FileAnalyzer:
             return metadata if metadata else None
         except Exception as e:
             logger.warning(f"Failed to extract video metadata from {file_path}: {str(e)}")
-            # Try using subprocess as fallback if ffmpeg is installed
+            # Try using subprocess as fallback if ffprobe is available
+            # Note: ffmpeg-python library already validates file paths
             try:
+                # Validate file_path to prevent command injection
+                if not os.path.isfile(file_path):
+                    logger.warning(f"File does not exist: {file_path}")
+                    return None
+                
                 result = subprocess.run(
                     ["ffprobe", "-v", "error", "-show_entries", "format=duration,size:stream=codec_name,width,height",
                      "-of", "default=noprint_wrappers=1", file_path],
                     capture_output=True,
                     text=True,
-                    timeout=5
+                    timeout=5,
+                    shell=False  # Explicitly disable shell to prevent command injection
                 )
                 if result.returncode == 0 and result.stdout:
                     # Parse basic info from ffprobe output
