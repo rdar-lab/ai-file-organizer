@@ -78,6 +78,11 @@ def main():
         help="Perform a dry run without actually moving files",
     )
 
+    parser.add_argument(
+        "--csv-report",
+        help="Path to save CSV report of file classification (useful with --dry-run)",
+    )
+
     args = parser.parse_args()
 
     ai_config = None
@@ -137,7 +142,9 @@ def main():
         if args.dry_run:
             logging.warning("*** DRY RUN MODE - No files will be moved ***")
 
-        stats = organizer.organize_files(args.input, args.output, dry_run=args.dry_run)
+        stats = organizer.organize_files(
+            args.input, args.output, dry_run=args.dry_run, csv_report_path=args.csv_report
+        )
 
         logger.info("\n" + ("=" * 50))
         logger.info("Organization Complete!")
