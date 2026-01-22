@@ -38,6 +38,20 @@ class TestAIFacade:
             assert facade.provider == 'azure'
             mock_azure.assert_called_once()
     
+    def test_init_google_provider(self):
+        """Test initialization with Google Gemini provider."""
+        config = {
+            'provider': 'google',
+            'model': 'gemini-pro',
+            'temperature': 0.3,
+            'api_key': 'test-key'
+        }
+        
+        with patch('ai_file_organizer.ai_facade.ChatGoogleGenerativeAI') as mock_google:
+            facade = AIFacade(config)
+            assert facade.provider == 'google'
+            mock_google.assert_called_once()
+    
     def test_init_local_provider(self):
         """Test initialization with local provider."""
         config = {

@@ -46,7 +46,7 @@ def main():
 
     parser.add_argument(
         "--provider",
-        choices=["openai", "azure", "local"],
+        choices=["openai", "azure", "google", "local"],
         default="openai",
         help="LLM provider (default: openai)",
     )

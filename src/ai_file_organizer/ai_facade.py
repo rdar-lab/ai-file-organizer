@@ -4,6 +4,7 @@ import logging
 import os
 from typing import Any, Dict
 
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 logger = logging.getLogger(__name__)
@@ -18,10 +19,10 @@ class AIFacade:
 
         Args:
             config: Configuration dictionary with LLM settings
-                - provider: 'openai', 'azure', or 'local'
+                - provider: 'openai', 'azure', 'google', or 'local'
                 - model: Model name
                 - temperature: Temperature setting
-                - api_key: API key (for OpenAI/Azure)
+                - api_key: API key (for OpenAI/Azure/Google)
                 - azure_endpoint: Azure endpoint (for Azure)
                 - base_url: Base URL (for local LLM)
         """
@@ -48,6 +49,12 @@ class AIFacade:
                 azure_endpoint=self.config.get(
                     "azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT")
                 ),
+            )
+        elif self.provider == "google":
+            return ChatGoogleGenerativeAI(
+                model=self.config.get("model", "gemini-pro"),
+                temperature=self.config.get("temperature", 0.3),
+                google_api_key=self.config.get("api_key", os.getenv("GOOGLE_API_KEY")),
             )
         elif self.provider == "local":
             # For local LLMs (Llama, etc.)

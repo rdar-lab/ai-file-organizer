@@ -4,11 +4,11 @@ An intelligent file organization tool that uses AI/LLM models to automatically c
 
 ## Features
 
-- 🤖 **AI-Powered Categorization**: Uses advanced language models (GPT, Azure GPT, Llama) to intelligently categorize files
+- 🤖 **AI-Powered Categorization**: Uses advanced language models (GPT, Azure GPT, Google Gemini, Llama) to intelligently categorize files
 - 📁 **Automatic Organization**: Creates subdirectories for each category and moves files automatically
 - 🔍 **Smart File Analysis**: Extracts file metadata including type, size, executable status, and archive contents
 - 🎨 **Dual Interface**: Both CLI and GUI interfaces available
-- 🔧 **Flexible Configuration**: Support for multiple LLM providers (OpenAI, Azure, Local/Llama)
+- 🔧 **Flexible Configuration**: Support for multiple LLM providers (OpenAI, Azure, Google Gemini, Local/Llama)
 - 🧪 **Dry Run Mode**: Preview categorization without actually moving files
 
 ## Installation
@@ -113,7 +113,7 @@ Create a `config.yml` file:
 ```yaml
 # AI/LLM Configuration
 ai:
-  provider: openai  # openai, azure, or local
+  provider: openai  # openai, azure, google, or local
   model: gpt-3.5-turbo
   temperature: 0.3
   api_key: YOUR_API_KEY_HERE
@@ -121,6 +121,10 @@ ai:
   # For Azure
   # azure_endpoint: https://your-resource.openai.azure.com/
   # deployment_name: your-deployment
+  
+  # For Google Gemini
+  # model: gemini-pro
+  # api_key: YOUR_GOOGLE_API_KEY
   
   # For Local LLM
   # base_url: http://localhost:8000/v1
@@ -157,6 +161,15 @@ ai-file-organizer -i input -o output \
   -l Documents Images Videos
 ```
 
+#### Google Gemini
+```bash
+ai-file-organizer -i input -o output \
+  --provider google \
+  --model gemini-pro \
+  --api-key YOUR_GOOGLE_API_KEY \
+  -l Documents Images Videos
+```
+
 #### Local LLM (Llama, etc.)
 ```bash
 ai-file-organizer -i input -o output \
@@ -187,7 +200,7 @@ ai-file-organizer -i input -o output \
 -o, --output         Output folder for organized files (required)
 -l, --labels         List of category labels (space-separated)
 -c, --config         Path to configuration file (YAML)
---provider           LLM provider: openai, azure, or local (default: openai)
+--provider           LLM provider: openai, azure, google, or local (default: openai)
 --model              Model name (default: gpt-3.5-turbo)
 --api-key            API key for the LLM provider
 --azure-endpoint     Azure endpoint URL (for Azure provider)
