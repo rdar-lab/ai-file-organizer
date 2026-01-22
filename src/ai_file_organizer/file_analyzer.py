@@ -1,8 +1,10 @@
 """File analysis and metadata extraction module."""
 
+import hashlib
 import logging
 import os
 import stat
+import subprocess
 import tarfile
 import zipfile
 from typing import Any, Dict, Optional
@@ -14,6 +16,25 @@ try:
     PEFILE_AVAILABLE = True
 except ImportError:
     PEFILE_AVAILABLE = False
+
+try:
+    import PyPDF2
+    PYPDF2_AVAILABLE = True
+except ImportError:
+    PYPDF2_AVAILABLE = False
+
+try:
+    from PIL import Image
+    from PIL.ExifTags import TAGS, GPSTAGS
+    PILLOW_AVAILABLE = True
+except ImportError:
+    PILLOW_AVAILABLE = False
+
+try:
+    import ffmpeg
+    FFMPEG_AVAILABLE = True
+except ImportError:
+    FFMPEG_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +71,11 @@ class FileAnalyzer:
             "is_executable": self._is_executable(file_path),
         }
 
+        # Add file hashes (MD5, SHA1, SHA256)
+        hashes = self._calculate_hashes(file_path)
+        if hashes:
+            file_info["hashes"] = hashes
+
         # Check if file is an archive and extract contents list
         archive_contents = self._get_archive_contents(file_path)
         if archive_contents:
@@ -60,6 +86,33 @@ class FileAnalyzer:
             exe_metadata = self._get_executable_metadata(file_path)
             if exe_metadata:
                 file_info["executable_metadata"] = exe_metadata
+
+        # Extract PDF metadata and content
+        if file_info["file_type"] == ".pdf":
+            pdf_metadata = self._get_pdf_metadata(file_path)
+            if pdf_metadata:
+                file_info["pdf_metadata"] = pdf_metadata
+            pdf_content = self._get_pdf_content(file_path)
+            if pdf_content:
+                file_info["pdf_content"] = pdf_content
+
+        # Extract text content for text files
+        if file_info["file_type"] == ".txt" or file_info["mime_type"] == "text/plain":
+            text_content = self._get_text_content(file_path)
+            if text_content:
+                file_info["text_content"] = text_content
+
+        # Extract image metadata
+        if file_info["mime_type"] and file_info["mime_type"].startswith("image/"):
+            image_metadata = self._get_image_metadata(file_path)
+            if image_metadata:
+                file_info["image_metadata"] = image_metadata
+
+        # Extract video metadata
+        if file_info["mime_type"] and file_info["mime_type"].startswith("video/"):
+            video_metadata = self._get_video_metadata(file_path)
+            if video_metadata:
+                file_info["video_metadata"] = video_metadata
 
         # Add file stats as metadata
         file_stats = os.stat(file_path)
@@ -209,4 +262,274 @@ class FileAnalyzer:
         except (pefile.PEFormatError, OSError, IOError) as e:
             logger.debug(f"Failed to parse PE file {file_path}: {str(e)}")
             return None
+
+    def _calculate_hashes(self, file_path: str) -> Optional[Dict[str, str]]:
+        """
+        Calculate MD5, SHA1, and SHA256 hashes for a file.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Dictionary containing hash values or None if calculation failed
+        """
+        try:
+            md5_hash = hashlib.md5()
+            sha1_hash = hashlib.sha1()
+            sha256_hash = hashlib.sha256()
+
+            with open(file_path, "rb") as f:
+                # Read file in chunks to handle large files efficiently
+                for chunk in iter(lambda: f.read(4096), b""):
+                    md5_hash.update(chunk)
+                    sha1_hash.update(chunk)
+                    sha256_hash.update(chunk)
+
+            return {
+                "md5": md5_hash.hexdigest(),
+                "sha1": sha1_hash.hexdigest(),
+                "sha256": sha256_hash.hexdigest(),
+            }
+        except (IOError, OSError) as e:
+            logger.warning(f"Failed to calculate hashes for {file_path}: {str(e)}")
+            return None
+
+    def _get_pdf_metadata(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract metadata from PDF files.
+
+        Args:
+            file_path: Path to the PDF file
+
+        Returns:
+            Dictionary containing PDF metadata or None if extraction failed
+        """
+        if not PYPDF2_AVAILABLE:
+            logger.debug("PyPDF2 library not available, skipping PDF metadata extraction")
+            return None
+
+        try:
+            with open(file_path, "rb") as f:
+                pdf_reader = PyPDF2.PdfReader(f)
+                metadata = {}
+
+                # Extract document information
+                if pdf_reader.metadata:
+                    for key, value in pdf_reader.metadata.items():
+                        # Remove the '/' prefix from keys
+                        clean_key = key[1:] if key.startswith('/') else key
+                        metadata[clean_key] = str(value)
+
+                # Add page count
+                metadata["page_count"] = len(pdf_reader.pages)
+
+                return metadata if metadata else None
+        except Exception as e:
+            logger.warning(f"Failed to extract PDF metadata from {file_path}: {str(e)}")
+            return None
+
+    def _get_pdf_content(self, file_path: str, max_sentences: int = 3) -> Optional[str]:
+        """
+        Extract first few sentences from a PDF file.
+
+        Args:
+            file_path: Path to the PDF file
+            max_sentences: Maximum number of sentences to extract (default: 3)
+
+        Returns:
+            String containing the first few sentences or None if extraction failed
+        """
+        if not PYPDF2_AVAILABLE:
+            logger.debug("PyPDF2 library not available, skipping PDF content extraction")
+            return None
+
+        try:
+            with open(file_path, "rb") as f:
+                pdf_reader = PyPDF2.PdfReader(f)
+                
+                # Extract text from first few pages
+                text = ""
+                for page_num in range(min(3, len(pdf_reader.pages))):
+                    page = pdf_reader.pages[page_num]
+                    text += page.extract_text()
+                
+                # Get first few sentences
+                if text:
+                    # Simple sentence splitting (split by '. ', '! ', '? ')
+                    import re
+                    sentences = re.split(r'[.!?]\s+', text.strip())
+                    sentences = [s.strip() for s in sentences if s.strip()]
+                    return ' '.join(sentences[:max_sentences])
+                
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to extract PDF content from {file_path}: {str(e)}")
+            return None
+
+    def _get_text_content(self, file_path: str, max_sentences: int = 3) -> Optional[str]:
+        """
+        Extract first few sentences from a text file.
+
+        Args:
+            file_path: Path to the text file
+            max_sentences: Maximum number of sentences to extract (default: 3)
+
+        Returns:
+            String containing the first few sentences or None if extraction failed
+        """
+        try:
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read(2000)  # Read first 2000 characters
+                
+                if text:
+                    # Simple sentence splitting
+                    import re
+                    sentences = re.split(r'[.!?]\s+', text.strip())
+                    sentences = [s.strip() for s in sentences if s.strip()]
+                    return ' '.join(sentences[:max_sentences])
+                
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to extract text content from {file_path}: {str(e)}")
+            return None
+
+    def _get_image_metadata(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract metadata from image files (EXIF data).
+
+        Args:
+            file_path: Path to the image file
+
+        Returns:
+            Dictionary containing image metadata or None if extraction failed
+        """
+        if not PILLOW_AVAILABLE:
+            logger.debug("Pillow library not available, skipping image metadata extraction")
+            return None
+
+        try:
+            image = Image.open(file_path)
+            metadata = {}
+
+            # Basic image information
+            metadata["format"] = image.format
+            metadata["mode"] = image.mode
+            metadata["size"] = {"width": image.width, "height": image.height}
+
+            # Extract EXIF data
+            exif_data = image.getexif()
+            if exif_data:
+                exif_metadata = {}
+                for tag_id, value in exif_data.items():
+                    tag = TAGS.get(tag_id, tag_id)
+                    # Convert to string if not already
+                    if isinstance(value, bytes):
+                        try:
+                            value = value.decode('utf-8', errors='ignore')
+                        except:
+                            value = str(value)
+                    
+                    # Handle special tags
+                    if tag == "GPSInfo":
+                        gps_data = {}
+                        for gps_tag_id in value:
+                            gps_tag = GPSTAGS.get(gps_tag_id, gps_tag_id)
+                            gps_data[gps_tag] = str(value[gps_tag_id])
+                        exif_metadata["GPSInfo"] = gps_data
+                    else:
+                        exif_metadata[str(tag)] = str(value)
+                
+                if exif_metadata:
+                    metadata["exif"] = exif_metadata
+
+            return metadata if len(metadata) > 3 else None  # Return only if we have more than basic info
+        except Exception as e:
+            logger.warning(f"Failed to extract image metadata from {file_path}: {str(e)}")
+            return None
+
+    def _get_video_metadata(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract metadata from video files using ffmpeg.
+
+        Args:
+            file_path: Path to the video file
+
+        Returns:
+            Dictionary containing video metadata or None if extraction failed
+        """
+        if not FFMPEG_AVAILABLE:
+            logger.debug("ffmpeg-python library not available, skipping video metadata extraction")
+            return None
+
+        try:
+            # Try using ffmpeg via command line as fallback
+            probe = ffmpeg.probe(file_path)
+            
+            metadata = {}
+            
+            # Extract format information
+            if "format" in probe:
+                format_info = probe["format"]
+                if "duration" in format_info:
+                    metadata["duration"] = float(format_info["duration"])
+                if "size" in format_info:
+                    metadata["size"] = int(format_info["size"])
+                if "bit_rate" in format_info:
+                    metadata["bit_rate"] = int(format_info["bit_rate"])
+                if "format_name" in format_info:
+                    metadata["format"] = format_info["format_name"]
+            
+            # Extract video stream information
+            video_streams = [s for s in probe.get("streams", []) if s.get("codec_type") == "video"]
+            if video_streams:
+                video = video_streams[0]
+                metadata["video"] = {}
+                if "codec_name" in video:
+                    metadata["video"]["codec"] = video["codec_name"]
+                if "width" in video:
+                    metadata["video"]["width"] = video["width"]
+                if "height" in video:
+                    metadata["video"]["height"] = video["height"]
+                if "width" in video and "height" in video:
+                    metadata["video"]["resolution"] = f"{video['width']}x{video['height']}"
+                if "avg_frame_rate" in video:
+                    metadata["video"]["frame_rate"] = video["avg_frame_rate"]
+            
+            # Extract audio stream information
+            audio_streams = [s for s in probe.get("streams", []) if s.get("codec_type") == "audio"]
+            if audio_streams:
+                audio = audio_streams[0]
+                metadata["audio"] = {}
+                if "codec_name" in audio:
+                    metadata["audio"]["codec"] = audio["codec_name"]
+                if "sample_rate" in audio:
+                    metadata["audio"]["sample_rate"] = audio["sample_rate"]
+                if "channels" in audio:
+                    metadata["audio"]["channels"] = audio["channels"]
+
+            return metadata if metadata else None
+        except Exception as e:
+            logger.warning(f"Failed to extract video metadata from {file_path}: {str(e)}")
+            # Try using subprocess as fallback if ffmpeg is installed
+            try:
+                result = subprocess.run(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration,size:stream=codec_name,width,height",
+                     "-of", "default=noprint_wrappers=1", file_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout:
+                    # Parse basic info from ffprobe output
+                    metadata = {}
+                    for line in result.stdout.split('\n'):
+                        if '=' in line:
+                            key, value = line.split('=', 1)
+                            metadata[key] = value
+                    return metadata if metadata else None
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+                logger.debug(f"ffprobe command also failed: {str(e)}")
+            
+            return None
+
 
