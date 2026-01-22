@@ -9,6 +9,12 @@ from typing import Any, Dict, Optional
 
 import magic
 
+try:
+    import pefile
+    PEFILE_AVAILABLE = True
+except ImportError:
+    PEFILE_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +54,12 @@ class FileAnalyzer:
         archive_contents = self._get_archive_contents(file_path)
         if archive_contents:
             file_info["archive_contents"] = archive_contents
+
+        # Extract executable metadata for Windows PE files
+        if file_info["is_executable"]:
+            exe_metadata = self._get_executable_metadata(file_path)
+            if exe_metadata:
+                file_info["executable_metadata"] = exe_metadata
 
         # Add file stats as metadata
         file_stats = os.stat(file_path)
@@ -154,3 +166,45 @@ class FileAnalyzer:
             logger.warning(f"Failed to read archive contents for {file_path}: {str(e)}")
 
         return None
+
+    def _get_executable_metadata(self, file_path: str) -> Optional[Dict[str, str]]:
+        """
+        Extract metadata from Windows PE executables (EXE, DLL).
+
+        Args:
+            file_path: Path to the executable file
+
+        Returns:
+            Dictionary containing executable metadata or None if not a PE file
+        """
+        if not PEFILE_AVAILABLE:
+            logger.debug("pefile library not available, skipping executable metadata extraction")
+            return None
+
+        try:
+            pe = pefile.PE(file_path, fast_load=True)
+            pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']])
+
+            metadata = {}
+
+            # Extract version information if available
+            if hasattr(pe, 'FileInfo') and pe.FileInfo:
+                for fileinfo in pe.FileInfo:
+                    if fileinfo.Key == b'StringFileInfo':
+                        for st in fileinfo.StringTable:
+                            for entry in st.entries.items():
+                                key = entry[0].decode('utf-8', errors='ignore')
+                                value = entry[1].decode('utf-8', errors='ignore')
+                                # Common version info fields
+                                if key in ['FileDescription', 'ProductName', 'CompanyName', 
+                                          'FileVersion', 'ProductVersion', 'LegalCopyright',
+                                          'OriginalFilename', 'InternalName']:
+                                    metadata[key] = value
+
+            pe.close()
+            return metadata if metadata else None
+
+        except (pefile.PEFormatError, OSError, IOError) as e:
+            logger.debug(f"Failed to parse PE file {file_path}: {str(e)}")
+            return None
+
