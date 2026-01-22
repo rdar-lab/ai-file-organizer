@@ -3,7 +3,7 @@
 import logging
 import os
 import shutil
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from .ai_facade import AIFacade
 from .file_analyzer import FileAnalyzer
@@ -14,20 +14,30 @@ logger = logging.getLogger(__name__)
 class FileOrganizer:
     """Organize files using AI categorization."""
 
-    def __init__(self, ai_config: Dict[str, Any], labels: List[str]):
+    def __init__(self, ai_config: Dict[str, Any], labels: Union[List[str], Dict[str, List[str]]]):
         """
         Initialize the file organizer.
 
         Args:
             ai_config: Configuration for AI/LLM
-            labels: List of category labels
+            labels: List of category labels or hierarchical dict of labels with sub-labels
+                   Examples:
+                   - Flat list: ['Documents', 'Images', 'Videos']
+                   - Hierarchical: {'Documents': ['Work', 'Personal'], 'Images': [], 'Videos': []}
         """
         self.ai_facade = AIFacade(ai_config)
         self.file_analyzer = FileAnalyzer()
-        self.labels = labels
-
+        
+        # Normalize labels to hierarchical format
+        if isinstance(labels, list):
+            # Convert flat list to hierarchical dict with empty sub-labels
+            self.labels = {label: [] for label in labels}
+        else:
+            self.labels = labels
+        
+        # Ensure 'Other' category exists
         if "Other" not in self.labels:
-            self.labels.append("Other")  # Ensure 'Other' category exists
+            self.labels["Other"] = []
 
     def organize_files(
         self, input_folder: str, output_folder: str, dry_run: bool = False
@@ -51,12 +61,17 @@ class FileOrganizer:
         if not dry_run and not os.path.exists(output_folder):
             os.makedirs(output_folder)
 
-        # Create subdirectories for each label
+        # Create subdirectories for each label and sub-label
         if not dry_run:
-            for label in self.labels:
+            for label, sub_labels in self.labels.items():
                 label_dir = os.path.join(output_folder, label)
                 if not os.path.exists(label_dir):
                     os.makedirs(label_dir)
+                # Create sub-directories if sub-labels exist
+                for sub_label in sub_labels:
+                    sub_label_dir = os.path.join(label_dir, sub_label)
+                    if not os.path.exists(sub_label_dir):
+                        os.makedirs(sub_label_dir)
 
         # Process files
         stats = {
@@ -75,7 +90,7 @@ class FileOrganizer:
                     # Analyze file
                     file_info = self.file_analyzer.analyze_file(file_path)
 
-                    # Categorize using AI
+                    # Categorize using AI (returns "Category" or "Category/SubCategory")
                     category = self.ai_facade.categorize_file(file_info, self.labels)
 
                     if category is None:
@@ -84,8 +99,26 @@ class FileOrganizer:
                         )
                         category = "Other"
 
-                    # Move file to appropriate category folder
-                    dest_dir = os.path.join(output_folder, category)
+                    # Parse category path (handles both "Category" and "Category/SubCategory")
+                    category_parts = category.split("/")
+                    main_category = category_parts[0]
+                    
+                    # Ensure main category exists in labels
+                    if main_category not in self.labels:
+                        logger.warning(
+                            f"AI returned unknown category '{main_category}' for file {filename}, assigning to 'Other'"
+                        )
+                        category = "Other"
+                        main_category = "Other"
+                    
+                    # Build destination directory path
+                    category_parts = category.split("/")
+                    dest_dir = os.path.join(output_folder, *category_parts)
+                    
+                    # Create destination directory if it doesn't exist (for dry run or if missed)
+                    if not dry_run and not os.path.exists(dest_dir):
+                        os.makedirs(dest_dir)
+                    
                     dest_path = os.path.join(dest_dir, filename)
 
                     # Handle duplicate filenames
@@ -107,7 +140,7 @@ class FileOrganizer:
                         shutil.move(file_path, dest_path)
 
                     stats["processed"] += 1
-                    stats["categorization"][category] += 1
+                    stats["categorization"][main_category] += 1
 
                     message = f"{'[DRY RUN] ' if dry_run else ''}Moved {filename} -> {category}/"
                     print(message)
