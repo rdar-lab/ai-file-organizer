@@ -1,5 +1,6 @@
 """Tests for file organizer module."""
 
+import csv
 import os
 import tempfile
 import shutil
@@ -168,7 +169,6 @@ class TestFileOrganizer:
                     assert os.path.exists(csv_file)
                     
                     # Read and verify CSV content
-                    import csv
                     with open(csv_file, 'r', encoding='utf-8') as f:
                         reader = csv.DictReader(f)
                         rows = list(reader)
@@ -190,6 +190,48 @@ class TestFileOrganizer:
                         
                         assert 'script.py' in rows_by_name
                         assert rows_by_name['script.py']['file_type'] == '.py'
+        
+        finally:
+            shutil.rmtree(input_dir, ignore_errors=True)
+            shutil.rmtree(output_dir, ignore_errors=True)
+    
+    def test_organize_files_csv_report_empty_folder(self):
+        """Test CSV report generation with empty input folder."""
+        ai_config = {
+            'provider': 'openai',
+            'model': 'gpt-3.5-turbo',
+            'api_key': 'test-key'
+        }
+        labels = ['Documents', 'Images']
+        
+        # Create temporary directories
+        input_dir = tempfile.mkdtemp()
+        output_dir = tempfile.mkdtemp()
+        csv_file = os.path.join(output_dir, 'report.csv')
+        
+        try:
+            # No files in input directory
+            
+            with patch('ai_file_organizer.organizer.AIFacade'):
+                with patch('ai_file_organizer.organizer.FileAnalyzer'):
+                    organizer = FileOrganizer(ai_config, labels)
+                    stats = organizer.organize_files(input_dir, output_dir, dry_run=True, csv_report_path=csv_file)
+                    
+                    # Check stats
+                    assert stats['total_files'] == 0
+                    assert stats['processed'] == 0
+                    
+                    # CSV file should still be created with headers only
+                    assert os.path.exists(csv_file)
+                    
+                    # Read and verify CSV has headers but no data
+                    with open(csv_file, 'r', encoding='utf-8') as f:
+                        reader = csv.DictReader(f)
+                        rows = list(reader)
+                        
+                        assert len(rows) == 0, "CSV should have no data rows"
+                        # Verify headers are present by checking fieldnames
+                        assert reader.fieldnames == ['file_name', 'file_type', 'file_size', 'decided_label']
         
         finally:
             shutil.rmtree(input_dir, ignore_errors=True)

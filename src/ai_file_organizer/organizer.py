@@ -167,13 +167,14 @@ class FileOrganizer:
                     logger.error(error_msg)
 
         # Write CSV report if requested
-        if csv_report_path and csv_data:
+        if csv_report_path:
             try:
                 with open(csv_report_path, "w", newline="", encoding="utf-8") as csvfile:
                     fieldnames = ["file_name", "file_type", "file_size", "decided_label"]
                     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                     writer.writeheader()
-                    writer.writerows(csv_data)
+                    if csv_data:
+                        writer.writerows(csv_data)
                 logger.info(f"CSV report saved to: {csv_report_path}")
             except (IOError, OSError) as e:
                 logger.error(f"Failed to write CSV report: {str(e)}")

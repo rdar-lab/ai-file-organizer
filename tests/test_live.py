@@ -1,5 +1,6 @@
 """Live integration tests for AI File Organizer with Docker and local LLM."""
 
+import csv
 import os
 import tempfile
 import shutil
@@ -281,7 +282,6 @@ class TestDockerIntegration:
         assert os.path.exists(csv_report), "CSV report was not created"
         
         # Verify CSV content
-        import csv
         with open(csv_report, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             rows = list(reader)
