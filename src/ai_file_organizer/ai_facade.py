@@ -4,10 +4,12 @@ import logging
 import os
 import time
 import random
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
+
+from .ollama_utils import ensure_ollama_model_available_if_local
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,9 @@ class AIFacade:
         """
         self.config = config
         self.provider = config.get("provider", "openai")
+
+        ensure_ollama_model_available_if_local(config)
+
         self.llm = self._initialize_llm()
         # Create lowercase label mapping for efficient case-insensitive matching
         self._label_map = {}
@@ -52,7 +57,7 @@ class AIFacade:
             )
         elif self.provider == "azure":
             return AzureChatOpenAI(
-                deployment_name=self.config.get("deployment_name"),
+                azure_deployment=self.config.get("deployment_name"),
                 model=self.config.get("model", "gpt-3.5-turbo"),
                 temperature=self.config.get("temperature", 0.3),
                 api_key=self.config.get("api_key", os.getenv("AZURE_OPENAI_API_KEY")),
@@ -67,11 +72,12 @@ class AIFacade:
                 google_api_key=self.config.get("api_key", os.getenv("GOOGLE_API_KEY")),
             )
         elif self.provider == "local":
-            # For local LLMs (Llama, etc.)
+            # For local LLMs (Llama, etc.) - base_url can be provided in config or via OLLAMA_URL
+            base_url = self.config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:8000/v1"))
             return ChatOpenAI(
                 model=self.config.get("model", "llama2"),
                 temperature=self.config.get("temperature", 0.3),
-                base_url=self.config.get("base_url", "http://localhost:8000/v1"),
+                base_url=base_url,
                 api_key=self.config.get("api_key", "not-needed"),
             )
         else:
@@ -85,14 +91,12 @@ class AIFacade:
         configuration values from self.config control the retry behaviour.
         """
         attempt = 0
-        last_exception = None
         while attempt <= self._retries:
             try:
                 logger.debug("LLM invoke attempt %d", attempt + 1)
                 raw_response = self.llm.invoke(prompt)
                 return raw_response
             except Exception as exc:
-                last_exception = exc
                 attempt += 1
                 if attempt > self._retries:
                     logger.exception("LLM invoke failed after %d attempts", attempt)
@@ -110,7 +114,7 @@ class AIFacade:
                 )
                 time.sleep(sleep_time)
 
-    def categorize_file(self, file_info: dict, categories) -> str:
+    def categorize_file(self, file_info: dict, categories) -> Optional[str]:
         """
         Categorize a file using the LLM.
         Args:
@@ -127,7 +131,7 @@ class AIFacade:
             categories_dict = {cat: [] for cat in categories}
         else:
             categories_dict = categories
-        
+
         # Build hierarchical category list for prompt
         category_list = []
         for main_cat, sub_cats in categories_dict.items():
@@ -138,7 +142,7 @@ class AIFacade:
             else:
                 # Just the parent category
                 category_list.append(main_cat)
-        
+
         # Improved prompt with one-shot example showing hierarchical structure
         example_file = {
             "filename": "work_report.pdf",
@@ -187,13 +191,13 @@ class AIFacade:
         response_parts = response.split("/")
         main_category = response_parts[0].strip()
         sub_category = response_parts[1].strip() if len(response_parts) > 1 else None
-        
+
         # Validate response against available categories
         import re
-        
+
         # Get filename for better logging
         filename = file_info.get('filename', 'unknown')
-        
+
         # Try direct match first (case-sensitive)
         if main_category in categories_dict:
             if sub_category:
@@ -202,10 +206,11 @@ class AIFacade:
                     return f"{main_category}/{sub_category}"
                 else:
                     # Sub-category not found, return just main category
-                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}', using main category only")
+                    logger.warning(
+                        f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}', using main category only")
                     return main_category
             return main_category
-        
+
         # Try case-insensitive match for main category
         for cat in categories_dict.keys():
             if cat.lower() == main_category.lower():
@@ -215,9 +220,10 @@ class AIFacade:
                         if sub_cat.lower() == sub_category.lower():
                             return f"{cat}/{sub_cat}"
                     # Sub-category not found, return just main category
-                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{cat}', using main category only")
+                    logger.warning(
+                        f"File '{filename}': Sub-category '{sub_category}' not found in '{cat}', using main category only")
                 return cat
-        
+
         # Fallback: search for category names in the response (whole word)
         found = []
         for cat in categories_dict.keys():
@@ -226,6 +232,6 @@ class AIFacade:
                 found.append(cat)
         if len(found) == 1:
             return found[0]
-        
+
         # If none or multiple categories found, return None
         return None
