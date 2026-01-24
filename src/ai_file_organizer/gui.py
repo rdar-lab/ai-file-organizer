@@ -2,7 +2,7 @@
 
 import threading
 
-import PySimpleGUI as sg
+import FreeSimpleGUI as sg
 import yaml
 
 from .organizer import FileOrganizer

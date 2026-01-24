@@ -12,7 +12,6 @@ a = Analysis(
     ],
     hiddenimports=[
         'ai_file_organizer.gui',
-        'ai_file_organizer.cli',
         'langchain',
         'langchain_openai',
         'langchain_core',
@@ -25,7 +24,7 @@ a = Analysis(
         'PIL.ExifTags',
         'ffmpeg',
         'yaml',
-        'PySimpleGUI',
+        'FreeSimpleGUI',
         'tiktoken',
         'pydantic',
         'pydantic_core',

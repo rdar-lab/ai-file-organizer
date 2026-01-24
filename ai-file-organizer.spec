@@ -12,7 +12,6 @@ a = Analysis(
     ],
     hiddenimports=[
         'ai_file_organizer.cli',
-        'ai_file_organizer.gui',
         'langchain',
         'langchain_openai',
         'langchain_core',
