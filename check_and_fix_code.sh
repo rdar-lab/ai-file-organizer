@@ -12,7 +12,7 @@ pip install flake8 black isort
 flake8 src --max-complexity=20 --max-line-length=200 --ignore=W293
 
 # Check black formatting
-black --line-length=200  src
+black --line-length=200  --no-cache -v --diff  src
 
 # Check import sorting
 isort src
