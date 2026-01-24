@@ -47,51 +47,59 @@ class AIFacade:
         self._backoff_factor = float(config.get("backoff_factor", 0.1))
         self._max_backoff = float(config.get("max_backoff", 1.0))
 
+    def _read_config(self, config_value, default_value=None):
+        val = self.config.get(config_value)
+        if val is not None and str(val).strip() != "":
+            return val
+        else:
+            return default_value
+
+
     def _initialize_llm(self):
         """Initialize the LLM based on provider configuration."""
         if self.provider == "openai":
-            api_key = self.config.get("api_key", os.getenv("AZURE_OPENAI_API_KEY"))
+            api_key = self._read_config("api_key", os.getenv("AZURE_OPENAI_API_KEY"))
             if not api_key:
                 raise ValueError("API key is required for OpenAI provider")
             return ChatOpenAI(
-                model=self.config.get("model", "gpt-3.5-turbo"),
-                temperature=self.config.get("temperature", 0.3),
+                model=self._read_config("model", "gpt-3.5-turbo"),
+                temperature=self._read_config("temperature", 0.3),
                 api_key=api_key,
             )
         elif self.provider == "azure":
-            api_key = self.config.get("api_key", os.getenv("AZURE_OPENAI_API_KEY"))
+            api_key = self._read_config("api_key", os.getenv("AZURE_OPENAI_API_KEY"))
             if not api_key:
                 raise ValueError("API key is required for Azure provider")
 
-            azure_endpoint_def = self.config.get("azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT"))
+            azure_endpoint_def = self._read_config("azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT"))
             if not azure_endpoint_def:
                 raise ValueError("Azure endpoint is required for Azure provider")
 
             return AzureChatOpenAI(
-                azure_deployment=self.config.get("deployment_name"),
-                model=self.config.get("model", "gpt-3.5-turbo"),
-                temperature=self.config.get("temperature", 0.3),
+                azure_deployment=self._read_config("deployment_name"),
+                model=self._read_config("model", "gpt-3.5-turbo"),
+                temperature=self._read_config("temperature", 0.3),
                 api_key=api_key,
                 azure_endpoint=azure_endpoint_def,
             )
         elif self.provider == "google":
-            api_key = self.config.get("api_key", os.getenv("GOOGLE_API_KEY"))
+            api_key = self._read_config("api_key", os.getenv("GOOGLE_API_KEY"))
             if not api_key:
                 raise ValueError("API key is required for Google provider")
 
             return ChatGoogleGenerativeAI(
-                model=self.config.get("model", "gemini-pro"),
-                temperature=self.config.get("temperature", 0.3),
+                model=self._read_config("model", "gemini-pro"),
+                temperature=self._read_config("temperature", 0.3),
                 google_api_key=api_key,
             )
         elif self.provider == "local":
             # For local LLMs (Llama, etc.) - base_url can be provided in config or via OLLAMA_URL
-            base_url = self.config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
+            base_url = self._read_config("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
             return ChatOpenAI(
-                model=self.config.get("model", "llama2"),
-                temperature=self.config.get("temperature", 0.3),
+                model=self._read_config("model", "llama2"),
+                temperature=self._read_config("temperature", 0.3),
                 base_url=base_url,
-                api_key=self.config.get("api_key", "not-needed"),
+                api_key=self._read_config("api_key", "not-needed"),
             )
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
