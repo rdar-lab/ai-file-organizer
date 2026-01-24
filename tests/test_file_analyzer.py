@@ -3,7 +3,6 @@
 import os
 import tempfile
 import zipfile
-import pytest
 from unittest.mock import Mock, patch
 from ai_file_organizer.file_analyzer import FileAnalyzer
 

@@ -15,6 +15,8 @@ import yaml
 # Mark all tests in this file as live tests
 pytestmark = pytest.mark.live
 
+_MODEL_TO_USE = "tinyllama"
+
 
 class TestDockerIntegration():
     """Test class for Docker integration tests."""
@@ -39,6 +41,7 @@ class TestDockerIntegration():
 
     @staticmethod
     def wait_for_ollama(base_url="http://localhost:11434", timeout=120):
+
         """Wait for Ollama service to be ready."""
         print(f"Waiting for Ollama at {base_url}...")
         start_time = time.time()
@@ -76,6 +79,9 @@ class TestDockerIntegration():
             # Cleanup
             self.run_command("docker compose down", cwd=repo_root)
             pytest.fail("Ollama service did not become ready in time")
+
+        # Set the environment variable for the model
+        os.environ["OLLAMA_MODEL"] = _MODEL_TO_USE
 
         # Build the ai-file-organizer image
         print("Building ai-file-organizer Docker image...")
@@ -128,10 +134,9 @@ class TestDockerIntegration():
         config = {
             'ai': {
                 'provider': 'local',
-                'model': os.getenv("OLLAMA_MODEL", "tinyllama"),
+                'model': _MODEL_TO_USE,
                 'temperature': 0.3,
-                'base_url': 'http://ollama:11434/v1',
-                'api_key': 'not-needed'
+                'base_url': 'http://ollama:11434/v1'
             },
             'labels': ['Documents', 'Images', 'Code', 'Data', 'Other'],
             'input_folder': '/input',
@@ -229,9 +234,9 @@ class TestDockerIntegration():
             'ai-file-organizer:latest '
             'ai-file-organizer -i /input -o /output '
             '-l Documents Images Code Data Other '
-            '--provider local --model tinyllama '
+            f'--provider local --model {_MODEL_TO_USE} '
             '--base-url http://ollama:11434/v1 '
-            f'--api-key not-needed --dry-run --csv-report /output/classification_report.csv',
+            '--dry-run --csv-report /output/classification_report.csv',
             cwd=repo_root,
             timeout=300
         )
@@ -284,10 +289,9 @@ class TestDockerIntegration():
         cmd = (
             f"python3 -m ai_file_organizer.cli "
             f"-i {input_dir} -o {output_dir} "
-            f"-l Documents Images Code Data Other "
-            f"--provider local --model tinyllama "
+            "-l Documents Images Code Data Other "
+            f"--provider local --model {_MODEL_TO_USE} "
             f"--base-url http://localhost:11434/v1 "
-            f"--api-key not-needed "
             f"--config {config_path} "
         )
         returncode = self.run_command(cmd, cwd=src_dir, timeout=300)

@@ -30,9 +30,13 @@ def ensure_ollama_model_available_if_local(config: Dict[str, Any], *, timeout_se
     if not model_name:
         raise Exception("Local provider configured but no model specified")
 
+    # If ensure_model is disabled, skip
+    ensure_model = config.get("ensure_model", "0")
+    if not ensure_model:
+        return
+
     # Allow operator to opt-out (useful in some dev scenarios)
     if os.getenv("SKIP_OLLAMA_INIT", "false").lower() in ("1", "true", "yes"):
-        logger.debug("SKIP_OLLAMA_INIT set; skipping Ollama model check")
         return
 
     ollama_base = _get_ollama_base(config)
@@ -94,15 +98,15 @@ def _pull_model(ollama_base: str, model_name: str, timeout_seconds):
 
 
 def _get_ollama_base(config) -> str:
-    configured_base = config.get("base_url") or os.getenv("OLLAMA_URL") or "http://ollama:11434"
+    base_url = config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
 
     # If base_url points to an inference endpoint like http://ollama:11434/v1, derive the
     # Ollama management API host (scheme://netloc) so we can call /api/tags and /api/pull.
-    parsed = urlparse(configured_base)
+    parsed = urlparse(base_url)
     if parsed.scheme and parsed.netloc and parsed.path and parsed.path.strip('/').startswith('v1'):
         ollama_base = f"{parsed.scheme}://{parsed.netloc}"
     else:
-        ollama_base = configured_base.rstrip('/')
+        ollama_base = base_url.rstrip('/')
     return ollama_base
 
 

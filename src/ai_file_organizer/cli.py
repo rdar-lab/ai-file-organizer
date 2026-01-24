@@ -35,7 +35,7 @@ def main():
     )
 
     parser.add_argument(
-        "-o", "--output", required=True, help="Output folder for organized files"
+        "-o", "--output", help="Output folder for organized files"
     )
 
     parser.add_argument(
@@ -62,7 +62,14 @@ def main():
     )
 
     parser.add_argument(
-        "--base-url", help="Base URL for local LLM (for local provider)"
+        "--base-url",
+        help="Base URL for local LLM (for local provider) - default http://localhost:11434/v1"
+    )
+
+    parser.add_argument(
+        "--ensure-model",
+        help="If to ensure the model is available locally (for local provider)",
+        action="store_true",
     )
 
     parser.add_argument(
@@ -119,6 +126,9 @@ def main():
     if args.base_url:
         ai_config["base_url"] = args.base_url
 
+    if args.ensure_model:
+        ai_config["ensure_model"] = args.ensure_model
+
     if args.labels:
         labels = args.labels
 
@@ -129,7 +139,6 @@ def main():
 
     # Create organizer and process files
     try:
-        organizer = FileOrganizer(ai_config, labels)
         masked_ai_config = {k: v for k, v in ai_config.items() if k != "api_key"}
         logger.info("Starting file organization...")
         logger.info(f"Using AI Config: {masked_ai_config}")
@@ -140,7 +149,9 @@ def main():
         logger.info(f"Model: {ai_config['model']}")
 
         if args.dry_run:
-            logging.warning("*** DRY RUN MODE - No files will be moved ***")
+            logging.info("*** DRY RUN MODE - No files will be moved ***")
+
+        organizer = FileOrganizer(ai_config, labels)
 
         stats = organizer.organize_files(
             args.input, args.output, dry_run=args.dry_run, csv_report_path=args.csv_report
@@ -157,7 +168,7 @@ def main():
             logger.info(f"  {label}: {count} files")
 
     except Exception as e:
-        logger.exception(f"Error: {str(e)}")
+        logger.error(f"Error: {str(e)}")
         sys.exit(1)
 
 

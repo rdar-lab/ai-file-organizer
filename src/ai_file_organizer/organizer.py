@@ -60,8 +60,11 @@ class FileOrganizer:
             raise ValueError(f"Input folder does not exist: {input_folder}")
 
         # Create output folder if it doesn't exist
-        if not dry_run and not os.path.exists(output_folder):
-            os.makedirs(output_folder)
+        if not dry_run:
+            if output_folder is None or len(output_folder) == 0:
+                raise ValueError("Output folder must be specified")
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
 
         # Create subdirectories for each label and sub-label
         if not dry_run:

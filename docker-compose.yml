@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ai-file-organizer:
     build: .
@@ -10,13 +8,13 @@ services:
       - ./output:/output
       - ./config.yml:/app/config.yml
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
-      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
       # Use a smaller model for tests (default: 'tinyllama')
-      - OLLAMA_MODEL=tinyllama
+      # - OLLAMA_MODEL=${OLLAMA_MODEL:-tinyllama}
       # For larger model testing, comment above and uncomment below:
-      # - OLLAMA_MODEL=llama2
+      - OLLAMA_MODEL=llama2
     depends_on:
       - ollama
 

@@ -80,7 +80,7 @@ ai:
   provider: local
   model: llama2
   temperature: 0.3
-  base_url: http://ollama:11434/v1
+  base_url: http://localhost:11434/v1
   api_key: not-needed
 
 labels:

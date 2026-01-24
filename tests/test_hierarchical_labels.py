@@ -3,7 +3,6 @@
 import os
 import tempfile
 import shutil
-import pytest
 from unittest.mock import Mock, patch
 from ai_file_organizer.organizer import FileOrganizer
 from ai_file_organizer.ai_facade import AIFacade

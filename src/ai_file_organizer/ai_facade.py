@@ -50,30 +50,45 @@ class AIFacade:
     def _initialize_llm(self):
         """Initialize the LLM based on provider configuration."""
         if self.provider == "openai":
+            api_key = self.config.get("api_key", os.getenv("AZURE_OPENAI_API_KEY"))
+            if not api_key:
+                raise ValueError("API key is required for OpenAI provider")
             return ChatOpenAI(
                 model=self.config.get("model", "gpt-3.5-turbo"),
                 temperature=self.config.get("temperature", 0.3),
-                api_key=self.config.get("api_key", os.getenv("OPENAI_API_KEY")),
+                api_key=api_key
             )
         elif self.provider == "azure":
+            api_key = self.config.get("api_key", os.getenv("AZURE_OPENAI_API_KEY"))
+            if not api_key:
+                raise ValueError("API key is required for Azure provider")
+
+            azure_endpoint_def = self.config.get(
+                "azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT")
+            )
+            if not azure_endpoint_def:
+                raise ValueError("Azure endpoint is required for Azure provider")
+
             return AzureChatOpenAI(
                 azure_deployment=self.config.get("deployment_name"),
                 model=self.config.get("model", "gpt-3.5-turbo"),
                 temperature=self.config.get("temperature", 0.3),
-                api_key=self.config.get("api_key", os.getenv("AZURE_OPENAI_API_KEY")),
-                azure_endpoint=self.config.get(
-                    "azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT")
-                ),
+                api_key=api_key,
+                azure_endpoint=azure_endpoint_def,
             )
         elif self.provider == "google":
+            api_key = self.config.get("api_key", os.getenv("GOOGLE_API_KEY"))
+            if not api_key:
+                raise ValueError("API key is required for Google provider")
+
             return ChatGoogleGenerativeAI(
                 model=self.config.get("model", "gemini-pro"),
                 temperature=self.config.get("temperature", 0.3),
-                google_api_key=self.config.get("api_key", os.getenv("GOOGLE_API_KEY")),
+                google_api_key=api_key,
             )
         elif self.provider == "local":
             # For local LLMs (Llama, etc.) - base_url can be provided in config or via OLLAMA_URL
-            base_url = self.config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:8000/v1"))
+            base_url = self.config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
             return ChatOpenAI(
                 model=self.config.get("model", "llama2"),
                 temperature=self.config.get("temperature", 0.3),
@@ -91,7 +106,7 @@ class AIFacade:
         configuration values from self.config control the retry behaviour.
         """
         attempt = 0
-        while attempt <= self._retries:
+        while True:
             try:
                 logger.debug("LLM invoke attempt %d", attempt + 1)
                 raw_response = self.llm.invoke(prompt)

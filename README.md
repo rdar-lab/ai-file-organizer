@@ -14,19 +14,14 @@ An intelligent file organization tool that uses AI/LLM models to automatically c
 
 ## Installation
 
-### Option 1: From PyPI (coming soon)
-```bash
-pip install ai-file-organizer
-```
-
-### Option 2: From Source
+### Option 1: From Source
 ```bash
 git clone https://github.com/rdar-lab/ai-file-organizer.git
 cd ai-file-organizer
 pip install -e .
 ```
 
-### Option 3: Using Docker
+### Option 2: Using Docker
 ```bash
 docker pull ghcr.io/rdar-lab/ai-file-organizer:latest
 ```
@@ -38,7 +33,7 @@ docker build -t ai-file-organizer .
 
 See [Docker Documentation](docs/DOCKER.md) for detailed Docker usage.
 
-### Option 4: Pre-built Executables
+### Option 3: Pre-built Executables
 
 Download pre-built executables for your platform from the [Releases](https://github.com/rdar-lab/ai-file-organizer/releases) page:
 - Windows: `ai-file-organizer-windows.zip`

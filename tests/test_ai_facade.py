@@ -1,7 +1,7 @@
 """Tests for AI facade module."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from ai_file_organizer.ai_facade import AIFacade
 
 
@@ -58,7 +58,8 @@ class TestAIFacade:
             'provider': 'local',
             'model': 'llama2',
             'temperature': 0.3,
-            'base_url': 'http://localhost:8000/v1'
+            'base_url': 'http://localhost:8000/v1',
+            'ensure_model': False
         }
         
         with patch('ai_file_organizer.ai_facade.ChatOpenAI') as mock_openai:
