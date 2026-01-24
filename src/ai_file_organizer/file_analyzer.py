@@ -57,9 +57,7 @@ class FileAnalyzer:
         try:
             self.magic = magic.Magic(mime=True)
         except Exception as e:
-            logger.warning(
-                f"Failed to initialize python-magic: {e}. MIME type detection will be limited."
-            )
+            logger.warning(f"Failed to initialize python-magic: {e}. MIME type detection will be limited.")
             self.magic = None
 
     def analyze_file(self, file_path: str) -> Dict[str, Any]:
@@ -245,19 +243,13 @@ class FileAnalyzer:
             Dictionary containing executable metadata or None if not a PE file
         """
         if not PEFILE_AVAILABLE:
-            logger.debug(
-                "pefile library not available, skipping executable metadata extraction"
-            )
+            logger.debug("pefile library not available, skipping executable metadata extraction")
             return None
 
         try:
             pe = pefile.PE(file_path, fast_load=True)
             try:
-                pe.parse_data_directories(
-                    directories=[
-                        pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]
-                    ]
-                )
+                pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]])
 
                 metadata = {}
 
@@ -334,9 +326,7 @@ class FileAnalyzer:
             Dictionary containing PDF metadata or None if extraction failed
         """
         if not PYPDF2_AVAILABLE:
-            logger.debug(
-                "pypdf library not available, skipping PDF metadata extraction"
-            )
+            logger.debug("pypdf library not available, skipping PDF metadata extraction")
             return None
 
         try:
@@ -436,9 +426,7 @@ class FileAnalyzer:
             Dictionary containing image metadata or None if extraction failed
         """
         if not PILLOW_AVAILABLE:
-            logger.debug(
-                "Pillow library not available, skipping image metadata extraction"
-            )
+            logger.debug("Pillow library not available, skipping image metadata extraction")
             return None
 
         try:
@@ -477,13 +465,9 @@ class FileAnalyzer:
                 if exif_metadata:
                     metadata["exif"] = exif_metadata
 
-            return (
-                metadata if len(metadata) > 3 else None
-            )  # Return only if we have more than basic info
+            return metadata if len(metadata) > 3 else None  # Return only if we have more than basic info
         except Exception as e:
-            logger.warning(
-                f"Failed to extract image metadata from {file_path}: {str(e)}"
-            )
+            logger.warning(f"Failed to extract image metadata from {file_path}: {str(e)}")
             return None
 
     @staticmethod
@@ -498,9 +482,7 @@ class FileAnalyzer:
             Dictionary containing video metadata or None if extraction failed
         """
         if not FFMPEG_AVAILABLE:
-            logger.debug(
-                "ffmpeg-python library not available, skipping video metadata extraction"
-            )
+            logger.debug("ffmpeg-python library not available, skipping video metadata extraction")
             return None
 
         try:
@@ -520,9 +502,7 @@ class FileAnalyzer:
 
             return metadata if metadata else None
         except Exception as e:
-            logger.warning(
-                f"Failed to extract video metadata from {file_path}: {str(e)}"
-            )
+            logger.warning(f"Failed to extract video metadata from {file_path}: {str(e)}")
             # Try using subprocess as fallback if ffprobe is available
             # Note: ffmpeg-python library already validates file paths
             return FileAnalyzer._extract_video_metadata_using_subprocess(file_path)
@@ -568,9 +548,7 @@ class FileAnalyzer:
 
     @staticmethod
     def _extract_audio_streams_information(metadata: dict[Any, Any], probe):
-        audio_streams = [
-            s for s in probe.get("streams", []) if s.get("codec_type") == "audio"
-        ]
+        audio_streams = [s for s in probe.get("streams", []) if s.get("codec_type") == "audio"]
         if audio_streams:
             audio = audio_streams[0]
             metadata["audio"] = {}
@@ -583,9 +561,7 @@ class FileAnalyzer:
 
     @staticmethod
     def _extract_video_streams_information(metadata: dict[Any, Any], probe):
-        video_streams = [
-            s for s in probe.get("streams", []) if s.get("codec_type") == "video"
-        ]
+        video_streams = [s for s in probe.get("streams", []) if s.get("codec_type") == "video"]
         if video_streams:
             video = video_streams[0]
             metadata["video"] = {}

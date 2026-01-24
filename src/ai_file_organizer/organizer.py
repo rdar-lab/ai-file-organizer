@@ -111,9 +111,7 @@ class FileOrganizer:
                     category = self.ai_facade.categorize_file(file_info, self.labels)
 
                     if category is None:
-                        logger.warning(
-                            f"AI returned no category for file {filename}, assigning to 'Other'"
-                        )
+                        logger.warning(f"AI returned no category for file {filename}, assigning to 'Other'")
                         category = "Other"
 
                     # Parse category path (handles both "Category" and "Category/SubCategory")
@@ -122,9 +120,7 @@ class FileOrganizer:
 
                     # Ensure main category exists in labels
                     if main_category not in self.labels:
-                        logger.warning(
-                            f"AI returned unknown category '{main_category}' for file {filename}, assigning to 'Other'"
-                        )
+                        logger.warning(f"AI returned unknown category '{main_category}' for file {filename}, assigning to 'Other'")
                         category = "Other"
                         main_category = "Other"
 
@@ -149,9 +145,7 @@ class FileOrganizer:
                             counter += 1
 
                         if counter >= max_attempts:
-                            raise RuntimeError(
-                                f"Could not find unique filename for {filename} after {max_attempts} attempts"
-                            )
+                            raise RuntimeError(f"Could not find unique filename for {filename} after {max_attempts} attempts")
 
                     if not self.dry_run:
                         shutil.move(file_path, dest_path)
@@ -181,9 +175,7 @@ class FileOrganizer:
         # Write CSV report if requested
         if self.csv_report_path:
             try:
-                with open(
-                    self.csv_report_path, "w", newline="", encoding="utf-8"
-                ) as csvfile:
+                with open(self.csv_report_path, "w", newline="", encoding="utf-8") as csvfile:
                     fieldnames = [
                         "file_name",
                         "file_type",

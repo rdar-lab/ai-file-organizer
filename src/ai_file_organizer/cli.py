@@ -76,19 +76,11 @@ def main():
 
     ai_config = config.get("ai", {})
 
-    provider = _read_config(
-        ai_config, args, "provider", "provider", "PROVIDER", None, "openai"
-    )
-    model = _read_config(
-        ai_config, args, "model", "model", "MODEL", None, "gpt-3.5-turbo"
-    )
-    temperature = _read_config(
-        ai_config, args, "temperature", "temperature", "TEMPERATURE", float, 0.3
-    )
+    provider = _read_config(ai_config, args, "provider", "provider", "PROVIDER", None, "openai")
+    model = _read_config(ai_config, args, "model", "model", "MODEL", None, "gpt-3.5-turbo")
+    temperature = _read_config(ai_config, args, "temperature", "temperature", "TEMPERATURE", float, 0.3)
     api_key = _read_config(ai_config, args, "api_key", "api_key", "API_KEY")
-    azure_endpoint = _read_config(
-        ai_config, args, "azure_endpoint", "azure_endpoint", "AZURE_ENDPOINT"
-    )
+    azure_endpoint = _read_config(ai_config, args, "azure_endpoint", "azure_endpoint", "AZURE_ENDPOINT")
     base_url = _read_config(
         ai_config,
         args,
@@ -118,28 +110,20 @@ def main():
         "ensure_model": bool(ensure_model) if ensure_model is not None else True,
     }
 
-    labels = _read_config(
-        config, args, "labels", "labels", "LABELS", _parse_cs_to_list, []
-    )
+    labels = _read_config(config, args, "labels", "labels", "LABELS", _parse_cs_to_list, [])
     # Validate labels
     if not labels:
-        logger.error(
-            "No labels specified. Use --labels, provide them in config, or set the LABELS env variable."
-        )
+        logger.error("No labels specified. Use --labels, provide them in config, or set the LABELS env variable.")
         sys.exit(1)
 
-    dry_run = _read_config(
-        config, args, "dry_run", "dry_run", "DRY_RUN", _str_to_bool, False
-    )
+    dry_run = _read_config(config, args, "dry_run", "dry_run", "DRY_RUN", _str_to_bool, False)
     csv_report = _read_config(config, args, "csv_report", "csv_report", "CSV_REPORT")
 
     input_folder = _read_config(config, args, "input_folder", "input", "INPUT_FOLDER")
 
     # Validate input
     if not input_folder:
-        logger.error(
-            "No input folder specified. Use --input, provide it in config, or set INPUT_FOLDER env variable."
-        )
+        logger.error("No input folder specified. Use --input, provide it in config, or set INPUT_FOLDER env variable.")
         sys.exit(1)
 
     output_folder = _read_config(
@@ -149,9 +133,7 @@ def main():
         "output",
         "OUTPUT_FOLDER",
     )
-    continuous = _read_config(
-        config, args, "continuous", "continuous", "CONTINUOUS", _str_to_bool, False
-    )
+    continuous = _read_config(config, args, "continuous", "continuous", "CONTINUOUS", _str_to_bool, False)
 
     interval = _read_config(config, args, "interval", "interval", "INTERVAL", int)
 
@@ -191,9 +173,7 @@ def main():
                     logger.exception(f"Error during organization cycle: {e}")
                     time.sleep(interval)
         else:
-            _run_once(
-                ai_config, labels, input_folder, output_folder, dry_run, csv_report
-            )
+            _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report)
     except SystemExit:
         # propagate SystemExit so callers (like docker-runner) can handle it
         raise
@@ -235,20 +215,14 @@ def _parse_cs_to_list(values: str) -> list[str]:
 
 def _init_args_parser() -> Namespace:
     """Main CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="AI File Organizer - Organize files using AI/LLM models"
-    )
+    parser = argparse.ArgumentParser(description="AI File Organizer - Organize files using AI/LLM models")
 
     # Make --input optional; it can be provided in config or via env var
-    parser.add_argument(
-        "-i", "--input", help="Input folder containing files to organize"
-    )
+    parser.add_argument("-i", "--input", help="Input folder containing files to organize")
 
     parser.add_argument("-o", "--output", help="Output folder for organized files")
 
-    parser.add_argument(
-        "-l", "--labels", nargs="+", help="List of category labels (space-separated)"
-    )
+    parser.add_argument("-l", "--labels", nargs="+", help="List of category labels (space-separated)")
 
     parser.add_argument("-c", "--config", help="Path to configuration file (YAML)")
 
@@ -262,9 +236,7 @@ def _init_args_parser() -> Namespace:
 
     parser.add_argument("--api-key", help="API key for the LLM provider")
 
-    parser.add_argument(
-        "--azure-endpoint", help="Azure endpoint URL (for Azure provider)"
-    )
+    parser.add_argument("--azure-endpoint", help="Azure endpoint URL (for Azure provider)")
 
     parser.add_argument(
         "--base-url",

@@ -63,9 +63,7 @@ class AIFacade:
             if not api_key:
                 raise ValueError("API key is required for Azure provider")
 
-            azure_endpoint_def = self.config.get(
-                "azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT")
-            )
+            azure_endpoint_def = self.config.get("azure_endpoint", os.getenv("AZURE_OPENAI_ENDPOINT"))
             if not azure_endpoint_def:
                 raise ValueError("Azure endpoint is required for Azure provider")
 
@@ -88,9 +86,7 @@ class AIFacade:
             )
         elif self.provider == "local":
             # For local LLMs (Llama, etc.) - base_url can be provided in config or via OLLAMA_URL
-            base_url = self.config.get(
-                "base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1")
-            )
+            base_url = self.config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
             return ChatOpenAI(
                 model=self.config.get("model", "llama2"),
                 temperature=self.config.get("temperature", 0.3),
@@ -119,9 +115,7 @@ class AIFacade:
                     logger.exception("LLM invoke failed after %d attempts", attempt)
                     raise
                 # exponential backoff with jitter
-                backoff = min(
-                    self._max_backoff, self._backoff_factor * (2 ** (attempt - 1))
-                )
+                backoff = min(self._max_backoff, self._backoff_factor * (2 ** (attempt - 1)))
                 jitter = random.uniform(0, backoff * 0.1)
                 sleep_time = backoff + jitter
                 logger.warning(
@@ -224,9 +218,7 @@ class AIFacade:
                     return f"{main_category}/{sub_category}"
                 else:
                     # Sub-category not found, return just main category
-                    logger.warning(
-                        f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}', using main category only"
-                    )
+                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}', using main category only")
                     return main_category
             return main_category
 
@@ -239,9 +231,7 @@ class AIFacade:
                         if sub_cat.lower() == sub_category.lower():
                             return f"{cat}/{sub_cat}"
                     # Sub-category not found, return just main category
-                    logger.warning(
-                        f"File '{filename}': Sub-category '{sub_category}' not found in '{cat}', using main category only"
-                    )
+                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{cat}', using main category only")
                 return cat
 
         # Fallback: search for category names in the response (whole word)

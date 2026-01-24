@@ -65,11 +65,7 @@ def main():  # noqa: C901
                 size=(30, 15),
             ),
         ],
-        [
-            sg.Checkbox(
-                "Dry Run (don't actually move files)", key="dry_run", default=False
-            )
-        ],
+        [sg.Checkbox("Dry Run (don't actually move files)", key="dry_run", default=False)],
         # CSV report selection (optional)
         [
             sg.Text("CSV Report (optional):", size=(15, 1)),
@@ -122,9 +118,7 @@ def main():  # noqa: C901
     ]
 
     # Create the window (make it larger and resizable)
-    window = sg.Window(
-        "AI File Organizer", layout, size=(900, 700), resizable=True, finalize=True
-    )
+    window = sg.Window("AI File Organizer", layout, size=(900, 700), resizable=True, finalize=True)
 
     def _build_config_from_values(values: dict) -> dict:
         """Build a CLI-compatible YAML config dict from current GUI values."""
@@ -139,9 +133,7 @@ def main():  # noqa: C901
 
         # Labels: split comma-separated string into a list
         labels_raw = values.get("labels", "")
-        labels_list = [
-            label.strip() for label in labels_raw.split(",") if label.strip()
-        ]
+        labels_list = [label.strip() for label in labels_raw.split(",") if label.strip()]
 
         cfg = {
             "ai": ai,
@@ -298,9 +290,7 @@ def main():  # noqa: C901
                     window["output"].print(f'Model: {ai_config["model"]}')
 
                     if values["dry_run"]:
-                        window["output"].print(
-                            "\n*** DRY RUN MODE - No files will be moved ***\n"
-                        )
+                        window["output"].print("\n*** DRY RUN MODE - No files will be moved ***\n")
 
                     stats = organizer.organize_files()
 
