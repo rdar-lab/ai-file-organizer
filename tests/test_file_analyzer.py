@@ -220,7 +220,7 @@ class TestFileAnalyzer:
                     'FileVersion': '1.0.0.0'
                 }
                 
-                with patch.object(analyzer, '_get_executable_metadata', return_value=sample_metadata):
+                with patch.object(FileAnalyzer, '_get_executable_metadata', return_value=sample_metadata):
                     file_info = analyzer.analyze_file(temp_path)
                     
                     assert 'executable_metadata' in file_info
