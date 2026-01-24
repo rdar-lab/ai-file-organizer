@@ -31,6 +31,7 @@ except ImportError:
 try:
     # noinspection PyUnusedImports
     from PIL import Image
+
     # noinspection PyUnusedImports
     from PIL.ExifTags import GPSTAGS, TAGS
 
@@ -508,9 +509,7 @@ class FileAnalyzer:
             return FileAnalyzer._extract_video_metadata_using_subprocess(file_path)
 
     @staticmethod
-    def _extract_video_metadata_using_subprocess(
-        file_path: str,
-    ) -> Optional[Dict[str, Any]]:
+    def _extract_video_metadata_using_subprocess(file_path: str) -> Optional[Dict[str, Any]]:
         try:
             # Validate file_path to prevent command injection
             if not os.path.isfile(file_path):
