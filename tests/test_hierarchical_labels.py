@@ -26,7 +26,7 @@ class TestHierarchicalLabels:
         
         with patch('ai_file_organizer.organizer.AIFacade'):
             with patch('ai_file_organizer.organizer.FileAnalyzer'):
-                organizer = FileOrganizer(ai_config, labels)
+                organizer = FileOrganizer(ai_config, labels, '.', None, dry_run=True)
                 assert organizer.labels == {
                     'Documents': ['Work', 'Personal'],
                     'Images': ['Photos', 'Screenshots'],
@@ -143,8 +143,8 @@ class TestHierarchicalLabels:
             
             with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
                 with patch('ai_file_organizer.organizer.FileAnalyzer', return_value=mock_file_analyzer):
-                    organizer = FileOrganizer(ai_config, labels)
-                    stats = organizer.organize_files(input_dir, output_dir, dry_run=False)
+                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=False)
+                    stats = organizer.organize_files()
                     
                     # Check stats
                     assert stats['total_files'] == 1

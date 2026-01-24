@@ -23,7 +23,7 @@ class TestFileOrganizer:
         
         with patch('ai_file_organizer.organizer.AIFacade'):
             with patch('ai_file_organizer.organizer.FileAnalyzer'):
-                organizer = FileOrganizer(ai_config, labels)
+                organizer = FileOrganizer(ai_config, labels, '.', None, dry_run=True)
                 # Labels are now stored as dict internally
                 assert organizer.labels == {'Documents': [], 'Images': [], 'Videos': [], 'Other': []}
     
@@ -38,11 +38,9 @@ class TestFileOrganizer:
         
         with patch('ai_file_organizer.organizer.AIFacade'):
             with patch('ai_file_organizer.organizer.FileAnalyzer'):
-                organizer = FileOrganizer(ai_config, labels)
-                
                 with pytest.raises(ValueError, match="Input folder does not exist"):
-                    organizer.organize_files('/nonexistent', '/output')
-    
+                    FileOrganizer(ai_config, labels, '/nonexistent', None, dry_run=True)
+
     def test_organize_files_dry_run(self):
         """Test organize_files in dry run mode."""
         ai_config = {
@@ -80,8 +78,8 @@ class TestFileOrganizer:
             
             with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
                 with patch('ai_file_organizer.organizer.FileAnalyzer', return_value=mock_file_analyzer):
-                    organizer = FileOrganizer(ai_config, labels)
-                    stats = organizer.organize_files(input_dir, output_dir, dry_run=True)
+                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=True)
+                    stats = organizer.organize_files()
                     
                     # Check stats
                     assert stats['total_files'] == 2
@@ -157,8 +155,9 @@ class TestFileOrganizer:
             
             with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
                 with patch('ai_file_organizer.organizer.FileAnalyzer', return_value=mock_file_analyzer):
-                    organizer = FileOrganizer(ai_config, labels)
-                    stats = organizer.organize_files(input_dir, output_dir, dry_run=True, csv_report_path=csv_file)
+                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=True,
+                                              csv_report_path=csv_file)
+                    stats = organizer.organize_files()
                     
                     # Check stats
                     assert stats['total_files'] == 3
@@ -214,8 +213,9 @@ class TestFileOrganizer:
             
             with patch('ai_file_organizer.organizer.AIFacade'):
                 with patch('ai_file_organizer.organizer.FileAnalyzer'):
-                    organizer = FileOrganizer(ai_config, labels)
-                    stats = organizer.organize_files(input_dir, output_dir, dry_run=True, csv_report_path=csv_file)
+                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=True,
+                                              csv_report_path=csv_file)
+                    stats = organizer.organize_files()
                     
                     # Check stats
                     assert stats['total_files'] == 0
@@ -271,8 +271,8 @@ class TestFileOrganizer:
             
             with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
                 with patch('ai_file_organizer.organizer.FileAnalyzer', return_value=mock_file_analyzer):
-                    organizer = FileOrganizer(ai_config, labels)
-                    stats = organizer.organize_files(input_dir, output_dir, dry_run=False)
+                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=False)
+                    stats = organizer.organize_files()
                     
                     # Check stats
                     assert stats['total_files'] == 1
@@ -329,8 +329,8 @@ class TestFileOrganizer:
             
             with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
                 with patch('ai_file_organizer.organizer.FileAnalyzer', return_value=mock_file_analyzer):
-                    organizer = FileOrganizer(ai_config, labels)
-                    stats = organizer.organize_files(input_dir, output_dir, dry_run=False)
+                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=False)
+                    stats = organizer.organize_files()
                     
                     # Check that both files are processed
                     assert stats['total_files'] == 2

@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import Dict, Any
+from typing import Any, Dict
 from urllib.parse import urlparse
 
 import requests
@@ -10,7 +10,9 @@ from requests import Response
 logger = logging.getLogger(__name__)
 
 
-def ensure_ollama_model_available_if_local(config: Dict[str, Any], *, timeout_seconds: int = 600):
+def ensure_ollama_model_available_if_local(
+    config: Dict[str, Any], *, timeout_seconds: int = 600
+):
     """Ensure Ollama model is available when using a local provider.
 
     This helper will attempt to reach the Ollama HTTP API (default: http://ollama:11434),
@@ -50,7 +52,9 @@ def ensure_ollama_model_available_if_local(config: Dict[str, Any], *, timeout_se
 
     _pull_model(ollama_base, model_name, timeout_seconds=timeout_seconds)
 
-    _wait_for_model_to_be_available(ollama_base, model_name, timeout_seconds=timeout_seconds)
+    _wait_for_model_to_be_available(
+        ollama_base, model_name, timeout_seconds=timeout_seconds
+    )
 
 
 def _wait_for_model_to_be_available(ollama_base: str, model_name: str, timeout_seconds):
@@ -66,7 +70,9 @@ def _wait_for_model_to_be_available(ollama_base: str, model_name: str, timeout_s
             pass
         time.sleep(2)
 
-    raise Exception(f'Timed out waiting for Ollama model {model_name} after {timeout_seconds} seconds')
+    raise Exception(
+        f"Timed out waiting for Ollama model {model_name} after {timeout_seconds} seconds"
+    )
 
 
 def _wait_for_ollama_api(ollama_base: str, timeout_seconds: int = 120):
@@ -83,39 +89,54 @@ def _wait_for_ollama_api(ollama_base: str, timeout_seconds: int = 120):
             pass
         time.sleep(2)
     else:
-        raise Exception(f'Ollama API at {ollama_base} did not become reachable')
+        raise Exception(f"Ollama API at {ollama_base} did not become reachable")
 
 
 def _pull_model(ollama_base: str, model_name: str, timeout_seconds):
     # Request model pull (don't fail hard if this fails)
     logger.info("Requesting Ollama pull for model %s", model_name)
     try:
-        response = requests.post(f"{ollama_base}/api/pull", json={"name": model_name}, timeout=timeout_seconds)
+        response = requests.post(
+            f"{ollama_base}/api/pull",
+            json={"name": model_name},
+            timeout=timeout_seconds,
+        )
         if response.status_code != 200:
-            raise Exception(f'Unexpected status code {response.status_code} - {response.text}')
+            raise Exception(
+                f"Unexpected status code {response.status_code} - {response.text}"
+            )
     except Exception as exc:
-        raise Exception(f'Failed to request Ollama pull: {repr(exc)}')
+        raise Exception(f"Failed to request Ollama pull: {repr(exc)}")
 
 
 def _get_ollama_base(config) -> str:
-    base_url = config.get("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
+    base_url = config.get(
+        "base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1")
+    )
 
     # If base_url points to an inference endpoint like http://ollama:11434/v1, derive the
     # Ollama management API host (scheme://netloc) so we can call /api/tags and /api/pull.
     parsed = urlparse(base_url)
-    if parsed.scheme and parsed.netloc and parsed.path and parsed.path.strip('/').startswith('v1'):
+    if (
+        parsed.scheme
+        and parsed.netloc
+        and parsed.path
+        and parsed.path.strip("/").startswith("v1")
+    ):
         ollama_base = f"{parsed.scheme}://{parsed.netloc}"
     else:
-        ollama_base = base_url.rstrip('/')
+        ollama_base = base_url.rstrip("/")
     return ollama_base
 
 
 def _check_if_model_available(ollama_base: str, model_name: str) -> bool:
     response = _get_tags(ollama_base)
     if response.status_code != 200:
-        raise Exception(f'Unexpected status code {response.status_code} - {response.text}')
-    models = response.json().get('models', [])
-    model_exists = any(model['name'].startswith(model_name) for model in models)
+        raise Exception(
+            f"Unexpected status code {response.status_code} - {response.text}"
+        )
+    models = response.json().get("models", [])
+    model_exists = any(model["name"].startswith(model_name) for model in models)
     return model_exists
 
 

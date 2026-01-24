@@ -8,7 +8,7 @@ import yaml
 from .organizer import FileOrganizer
 
 
-def main():
+def main():  # noqa: C901
     """Main GUI entry point."""
     sg.theme("DarkBlue3")
 
@@ -74,7 +74,10 @@ def main():
         [
             sg.Text("CSV Report (optional):", size=(15, 1)),
             sg.Input(key="csv_report", size=(40, 1)),
-            sg.FileSaveAs(file_types=(("CSV Files", ("*.csv",)), ("All Files", "*.*")), default_extension=".csv"),
+            sg.FileSaveAs(
+                file_types=(("CSV Files", ("*.csv",)), ("All Files", "*.*")),
+                default_extension=".csv",
+            ),
         ],
         [sg.HorizontalSeparator()],
         [
@@ -90,8 +93,25 @@ def main():
         [
             sg.Column(
                 [
-                    [sg.Multiline(size=(70, 10), key="output", autoscroll=True, disabled=True, expand_x=True, expand_y=True)],
-                    [sg.ProgressBar(100, orientation="h", size=(60, 20), key="progress", expand_x=True)],
+                    [
+                        sg.Multiline(
+                            size=(70, 10),
+                            key="output",
+                            autoscroll=True,
+                            disabled=True,
+                            expand_x=True,
+                            expand_y=True,
+                        )
+                    ],
+                    [
+                        sg.ProgressBar(
+                            100,
+                            orientation="h",
+                            size=(60, 20),
+                            key="progress",
+                            expand_x=True,
+                        )
+                    ],
                 ],
                 expand_x=True,
                 expand_y=True,
@@ -102,7 +122,9 @@ def main():
     ]
 
     # Create the window (make it larger and resizable)
-    window = sg.Window("AI File Organizer", layout, size=(900, 700), resizable=True, finalize=True)
+    window = sg.Window(
+        "AI File Organizer", layout, size=(900, 700), resizable=True, finalize=True
+    )
 
     def _build_config_from_values(values: dict) -> dict:
         """Build a CLI-compatible YAML config dict from current GUI values."""
@@ -117,7 +139,9 @@ def main():
 
         # Labels: split comma-separated string into a list
         labels_raw = values.get("labels", "")
-        labels_list = [l.strip() for l in labels_raw.split(",") if l.strip()]
+        labels_list = [
+            label.strip() for label in labels_raw.split(",") if label.strip()
+        ]
 
         cfg = {
             "ai": ai,
@@ -196,11 +220,11 @@ def main():
             )
             if save_path:
                 # Ensure extension
-                if not save_path.lower().endswith(('.yml', '.yaml')):
-                    save_path = save_path + '.yml'
+                if not save_path.lower().endswith((".yml", ".yaml")):
+                    save_path = save_path + ".yml"
                 try:
                     cfg = _build_config_from_values(values)
-                    with open(save_path, 'w', encoding='utf-8') as f:
+                    with open(save_path, "w", encoding="utf-8") as f:
                         yaml.safe_dump(cfg, f, sort_keys=False)
                     sg.popup("Configuration saved", title="Success")
                 except Exception as e:
@@ -213,7 +237,7 @@ def main():
             )
             if load_path:
                 try:
-                    with open(load_path, 'r', encoding='utf-8') as f:
+                    with open(load_path, "r", encoding="utf-8") as f:
                         cfg = yaml.safe_load(f) or {}
                     _apply_config_to_window(cfg)
                     sg.popup("Configuration loaded", title="Success")
@@ -257,7 +281,14 @@ def main():
             def organize_files_thread():
                 """Thread function to organize files."""
                 try:
-                    organizer = FileOrganizer(ai_config, labels)
+                    organizer = FileOrganizer(
+                        ai_config,
+                        labels,
+                        values["input_folder"],
+                        values["output_folder"],
+                        dry_run=values["dry_run"],
+                        csv_report_path=values.get("csv_report"),
+                    )
 
                     window["output"].print("Starting file organization...")
                     window["output"].print(f'Input folder: {values["input_folder"]}')
@@ -271,12 +302,7 @@ def main():
                             "\n*** DRY RUN MODE - No files will be moved ***\n"
                         )
 
-                    stats = organizer.organize_files(
-                        values["input_folder"],
-                        values["output_folder"],
-                        dry_run=values["dry_run"],
-                        csv_report_path=values.get("csv_report"),
-                    )
+                    stats = organizer.organize_files()
 
                     window["progress"].update(100)
                     window["output"].print("\n" + "=" * 50)
