@@ -173,3 +173,71 @@ class TestAIFacade:
             
             # Should default to first label
             assert category is None
+
+    def test_invoke_retries_succeeds_after_retry(self):
+        """Test that LLM invoke is retried on transient failure and eventually succeeds."""
+        config = {
+            'provider': 'openai',
+            'model': 'gpt-3.5-turbo',
+            'api_key': 'test-key',
+            'retries': 2,
+            'backoff_factor': 0,
+            'max_backoff': 0,
+        }
+
+        file_info = {
+            'filename': 'document.pdf',
+            'file_type': '.pdf',
+            'file_size': 1024,
+            'mime_type': 'application/pdf',
+            'is_executable': False
+        }
+
+        labels = ['Documents', 'Images', 'Videos']
+
+        # Mock the LLM: first call raises, second returns a valid response
+        mock_response = Mock()
+        mock_response.content = 'Documents'
+
+        with patch('ai_file_organizer.ai_facade.ChatOpenAI') as mock_openai:
+            mock_llm = Mock()
+            mock_llm.invoke.side_effect = [Exception('transient error'), mock_response]
+            mock_openai.return_value = mock_llm
+
+            facade = AIFacade(config)
+            category = facade.categorize_file(file_info, labels)
+
+            assert category == 'Documents'
+            assert mock_llm.invoke.call_count == 2
+
+    def test_invoke_retries_exhausted_raises(self):
+        """Test that LLM invoke raises when retries are exhausted."""
+        config = {
+            'provider': 'openai',
+            'model': 'gpt-3.5-turbo',
+            'api_key': 'test-key',
+            'retries': 0,  # no retries => single attempt
+            'backoff_factor': 0,
+            'max_backoff': 0,
+        }
+
+        file_info = {
+            'filename': 'document.pdf',
+            'file_type': '.pdf',
+            'file_size': 1024,
+            'mime_type': 'application/pdf',
+            'is_executable': False
+        }
+
+        labels = ['Documents', 'Images', 'Videos']
+
+        with patch('ai_file_organizer.ai_facade.ChatOpenAI') as mock_openai:
+            mock_llm = Mock()
+            mock_llm.invoke.side_effect = Exception('permanent failure')
+            mock_openai.return_value = mock_llm
+
+            facade = AIFacade(config)
+            with pytest.raises(Exception):
+                facade.categorize_file(file_info, labels)
+
+            assert mock_llm.invoke.call_count == 1

@@ -2,6 +2,8 @@
 
 import logging
 import os
+import time
+import random
 from typing import Any, Dict
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -25,12 +27,20 @@ class AIFacade:
                 - api_key: API key (for OpenAI/Azure/Google)
                 - azure_endpoint: Azure endpoint (for Azure)
                 - base_url: Base URL (for local LLM)
+                - retries: (optional) number of retry attempts for LLM calls
+                - backoff_factor: (optional) base backoff multiplier in seconds
+                - max_backoff: (optional) maximum backoff in seconds
         """
         self.config = config
         self.provider = config.get("provider", "openai")
         self.llm = self._initialize_llm()
         # Create lowercase label mapping for efficient case-insensitive matching
         self._label_map = {}
+
+        # Retry configuration (kept small by default so unit tests run fast)
+        self._retries = int(config.get("retries", 2))
+        self._backoff_factor = float(config.get("backoff_factor", 0.1))
+        self._max_backoff = float(config.get("max_backoff", 1.0))
 
     def _initialize_llm(self):
         """Initialize the LLM based on provider configuration."""
@@ -66,6 +76,39 @@ class AIFacade:
             )
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
+
+    def _invoke_with_retries(self, prompt: str):
+        """Invoke the underlying LLM with retries on exception.
+
+        Returns the raw response object from the LLM's invoke() call.
+        Retries are performed for exceptions thrown by the LLM client. The
+        configuration values from self.config control the retry behaviour.
+        """
+        attempt = 0
+        last_exception = None
+        while attempt <= self._retries:
+            try:
+                logger.debug("LLM invoke attempt %d", attempt + 1)
+                raw_response = self.llm.invoke(prompt)
+                return raw_response
+            except Exception as exc:
+                last_exception = exc
+                attempt += 1
+                if attempt > self._retries:
+                    logger.exception("LLM invoke failed after %d attempts", attempt)
+                    raise
+                # exponential backoff with jitter
+                backoff = min(self._max_backoff, self._backoff_factor * (2 ** (attempt - 1)))
+                jitter = random.uniform(0, backoff * 0.1)
+                sleep_time = backoff + jitter
+                logger.warning(
+                    "LLM invoke failed (attempt %d/%d): %s - retrying in %.2fs",
+                    attempt,
+                    self._retries,
+                    exc,
+                    sleep_time,
+                )
+                time.sleep(sleep_time)
 
     def categorize_file(self, file_info: dict, categories) -> str:
         """
@@ -136,7 +179,7 @@ class AIFacade:
             "Category:"
         )
         logger.info(f"LLM prompt: {prompt}")
-        raw_response = self.llm.invoke(prompt)
+        raw_response = self._invoke_with_retries(prompt)
         response = raw_response.content.strip()
         logger.info(f"LLM response: {response}")
 
