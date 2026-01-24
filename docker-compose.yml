@@ -8,6 +8,7 @@ services:
       - ./output:/output
       - ./config.yml:/app/config.yml
     environment:
+      - CONFIG_PATH=/app/config.yml
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
       - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}

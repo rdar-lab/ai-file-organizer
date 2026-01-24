@@ -72,7 +72,7 @@ def main():
     config = {}
     config_path = args.config or _env_or_none("CONFIG_PATH")
     if config_path:
-        config = load_config(args.config)
+        config = load_config(config_path)
 
     ai_config = config.get("ai", {})
 
