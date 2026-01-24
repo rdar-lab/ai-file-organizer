@@ -3,6 +3,7 @@
 import threading
 
 import PySimpleGUI as sg
+import yaml
 
 from .organizer import FileOrganizer
 
@@ -69,19 +70,114 @@ def main():
                 "Dry Run (don't actually move files)", key="dry_run", default=False
             )
         ],
+        # CSV report selection (optional)
+        [
+            sg.Text("CSV Report (optional):", size=(15, 1)),
+            sg.Input(key="csv_report", size=(40, 1)),
+            sg.FileSaveAs(file_types=(("CSV Files", ("*.csv",)), ("All Files", "*.*")), default_extension=".csv"),
+        ],
         [sg.HorizontalSeparator()],
         [
             sg.Button("Start Organizing", size=(15, 1)),
             sg.Button("Cancel", size=(15, 1)),
+            # Buttons to save/load configuration in the same YAML format as the CLI
+            sg.Button("Save Config", size=(12, 1)),
+            sg.Button("Load Config", size=(12, 1)),
         ],
         [sg.HorizontalSeparator()],
         [sg.Text("Progress:", font=("Helvetica", 12))],
-        [sg.Multiline(size=(70, 10), key="output", autoscroll=True, disabled=True)],
-        [sg.ProgressBar(100, orientation="h", size=(60, 20), key="progress")],
+        # Put the log and progress bar inside a Column that expands with the window
+        [
+            sg.Column(
+                [
+                    [sg.Multiline(size=(70, 10), key="output", autoscroll=True, disabled=True, expand_x=True, expand_y=True)],
+                    [sg.ProgressBar(100, orientation="h", size=(60, 20), key="progress", expand_x=True)],
+                ],
+                expand_x=True,
+                expand_y=True,
+                pad=(0, 0),
+                key="-BOTTOM-",
+            )
+        ],
     ]
 
-    # Create the window
-    window = sg.Window("AI File Organizer", layout, finalize=True)
+    # Create the window (make it larger and resizable)
+    window = sg.Window("AI File Organizer", layout, size=(900, 700), resizable=True, finalize=True)
+
+    def _build_config_from_values(values: dict) -> dict:
+        """Build a CLI-compatible YAML config dict from current GUI values."""
+        # Build ai config
+        ai = {
+            "provider": values.get("provider", "openai"),
+            "model": values.get("model", "gpt-3.5-turbo"),
+            "temperature": float(values.get("temperature", 0.3)),
+        }
+        if values.get("api_key"):
+            ai["api_key"] = values.get("api_key")
+
+        # Labels: split comma-separated string into a list
+        labels_raw = values.get("labels", "")
+        labels_list = [l.strip() for l in labels_raw.split(",") if l.strip()]
+
+        cfg = {
+            "ai": ai,
+            "labels": labels_list,
+        }
+
+        # Optional folders
+        if values.get("input_folder"):
+            cfg["input_folder"] = values.get("input_folder")
+        if values.get("output_folder"):
+            cfg["output_folder"] = values.get("output_folder")
+        if values.get("dry_run"):
+            cfg["dry_run"] = values.get("dry_run")
+        # Optional csv report path
+        if values.get("csv_report"):
+            cfg["csv_report"] = values.get("csv_report")
+
+        return cfg
+
+    def _apply_config_to_window(config: dict):
+        """Apply a loaded CLI-compatible config dict to the GUI elements."""
+        ai = config.get("ai", {}) or {}
+        provider = ai.get("provider")
+        model = ai.get("model")
+        temperature = ai.get("temperature")
+        api_key = ai.get("api_key")
+
+        # Update AI-related fields
+        if provider is not None:
+            try:
+                window["provider"].update(value=provider)
+            except Exception:
+                pass
+        if model is not None:
+            window["model"].update(value=model)
+        if temperature is not None:
+            try:
+                window["temperature"].update(value=float(temperature))
+            except Exception:
+                pass
+        if api_key is not None:
+            window["api_key"].update(value=api_key)
+
+        # Labels: can be a list or a dict (hierarchical). Convert to comma-separated top-level keys.
+        labels = config.get("labels")
+        if isinstance(labels, dict):
+            # Use top-level keys as labels
+            labels_str = ", ".join(labels.keys())
+            window["labels"].update(value=labels_str)
+        elif isinstance(labels, list):
+            window["labels"].update(value=", ".join([str(x) for x in labels]))
+
+        # Folders
+        if config.get("input_folder"):
+            window["input_folder"].update(value=config.get("input_folder"))
+        if config.get("output_folder"):
+            window["output_folder"].update(value=config.get("output_folder"))
+        # CSV report path
+        if config.get("csv_report"):
+            window["csv_report"].update(value=config.get("csv_report"))
 
     # Event loop
     while True:
@@ -90,13 +186,47 @@ def main():
         if event == sg.WIN_CLOSED or event == "Cancel":
             break
 
+        if event == "Save Config":
+            # Ask for file path to save
+            save_path = sg.popup_get_file(
+                "Save configuration as...",
+                save_as=True,
+                file_types=(("YAML Files", ("*.yml", "*.yaml")), ("All Files", "*.*")),
+                default_extension=".yml",
+            )
+            if save_path:
+                # Ensure extension
+                if not save_path.lower().endswith(('.yml', '.yaml')):
+                    save_path = save_path + '.yml'
+                try:
+                    cfg = _build_config_from_values(values)
+                    with open(save_path, 'w', encoding='utf-8') as f:
+                        yaml.safe_dump(cfg, f, sort_keys=False)
+                    sg.popup("Configuration saved", title="Success")
+                except Exception as e:
+                    sg.popup_error(f"Failed to save configuration: {e}")
+
+        if event == "Load Config":
+            load_path = sg.popup_get_file(
+                "Load configuration file...",
+                file_types=(("YAML Files", ("*.yml", "*.yaml")), ("All Files", "*.*")),
+            )
+            if load_path:
+                try:
+                    with open(load_path, 'r', encoding='utf-8') as f:
+                        cfg = yaml.safe_load(f) or {}
+                    _apply_config_to_window(cfg)
+                    sg.popup("Configuration loaded", title="Success")
+                except Exception as e:
+                    sg.popup_error(f"Failed to load configuration: {e}")
+
         if event == "Start Organizing":
             # Validate inputs
             if not values["input_folder"]:
                 sg.popup_error("Please select an input folder")
                 continue
 
-            if not values["output_folder"]:
+            if (not values["dry_run"]) and not values["output_folder"]:
                 sg.popup_error("Please select an output folder")
                 continue
 
@@ -145,6 +275,7 @@ def main():
                         values["input_folder"],
                         values["output_folder"],
                         dry_run=values["dry_run"],
+                        csv_report_path=values.get("csv_report"),
                     )
 
                     window["progress"].update(100)

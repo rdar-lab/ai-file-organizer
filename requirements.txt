@@ -1,3 +1,12 @@
+# NOTE: PySimpleGUI is hosted on a private PyPI server.
+# Before reinstalling, remove any version installed from PyPI and clear pip cache:
+#   python -m pip uninstall PySimpleGUI
+#   python -m pip cache purge
+# Then install requirements using the extra index URL below (this preserves access to the public PyPI):
+#   python -m pip install -r requirements.txt --extra-index-url https://PySimpleGUI.net/install
+
+--extra-index-url https://PySimpleGUI.net/install
+
 langchain>=0.1.0
 langchain-google-genai>=0.0.1
 langchain-openai>=0.0.2

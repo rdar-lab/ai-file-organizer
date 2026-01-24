@@ -94,12 +94,16 @@ def main():
 
     ai_config = None
     labels = None
+    dry_run = False
+    csv_report = None
 
     # Load configuration
     if args.config:
         config = load_config(args.config)
         ai_config = config.get("ai", {})
         labels = config.get("labels", [])
+        dry_run = config.get('dry_run', False)
+        csv_report = config.get('csv_report')
 
     if ai_config is None:
         ai_config = {}
@@ -132,6 +136,12 @@ def main():
     if args.labels:
         labels = args.labels
 
+    if args.dry_run:
+        dry_run = True
+
+    if args.csv_report:
+        csv_report = args.csv_report
+
     # Validate labels
     if not labels:
         logger.error("No labels specified. Use --labels or provide a config file.")
@@ -145,16 +155,17 @@ def main():
         logger.info(f"Input folder: {args.input}")
         logger.info(f"Output folder: {args.output}")
         logger.info(f"Labels: {', '.join(labels)}")
-        logger.info(f"Provider: {ai_config['provider']}")
-        logger.info(f"Model: {ai_config['model']}")
+        logger.info(f"Dry run: {dry_run}")
+        if csv_report:
+            logger.info(f"CSV report: {csv_report}")
 
-        if args.dry_run:
+        if dry_run:
             logging.info("*** DRY RUN MODE - No files will be moved ***")
 
         organizer = FileOrganizer(ai_config, labels)
 
         stats = organizer.organize_files(
-            args.input, args.output, dry_run=args.dry_run, csv_report_path=args.csv_report
+            args.input, args.output, dry_run=dry_run, csv_report_path=csv_report
         )
 
         logger.info("\n" + ("=" * 50))
