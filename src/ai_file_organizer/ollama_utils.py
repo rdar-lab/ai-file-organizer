@@ -31,7 +31,7 @@ def ensure_ollama_model_available_if_local(config: Dict[str, Any], *, timeout_se
         raise Exception("Local provider configured but no model specified")
 
     # If ensure_model is disabled, skip
-    ensure_model = config.get("ensure_model", "0")
+    ensure_model = config.get("ensure_model", False)
     if not ensure_model:
         return
 

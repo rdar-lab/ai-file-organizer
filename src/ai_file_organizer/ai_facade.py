@@ -54,7 +54,6 @@ class AIFacade:
         else:
             return default_value
 
-
     def _initialize_llm(self):
         """Initialize the LLM based on provider configuration."""
         if self.provider == "openai":
@@ -226,7 +225,7 @@ class AIFacade:
                     return f"{main_category}/{sub_category}"
                 else:
                     # Sub-category not found, return just main category
-                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}', using main category only")
+                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}'." + "using main category only")
                     return main_category
             return main_category
 

@@ -43,14 +43,14 @@ def _read_config(
 ):
     # First priority - read from args
     arg_val = getattr(args_obj, arg_key, None)
-    if arg_val is not None:
+    if arg_val is not None and str(arg_val).strip() != "":
         return arg_val
     # Second priority - read from config
-    if config_obj and config_key in config_obj:
+    if config_obj and config_obj.get(config_key) is not None and str(config_obj[config_key]).strip() != "":
         return config_obj[config_key]
     # Last priority - read from env var
     env_val = _env_or_none(env_key)
-    if parse_env_func and env_val is not None:
+    if parse_env_func and env_val is not None and str(env_val).strip() != "":
         return parse_env_func(env_val)
 
     return default_value
@@ -103,11 +103,11 @@ def main():
     ai_config = {
         "provider": provider,
         "model": model,
-        "temperature": float(temperature) if temperature is not None else None,
+        "temperature": temperature,
         "api_key": api_key,
         "azure_endpoint": azure_endpoint,
         "base_url": base_url,
-        "ensure_model": bool(ensure_model) if ensure_model is not None else True,
+        "ensure_model": ensure_model,
     }
 
     labels = _read_config(config, args, "labels", "labels", "LABELS", _parse_cs_to_list, [])
@@ -245,6 +245,7 @@ def _init_args_parser() -> Namespace:
 
     parser.add_argument(
         "--ensure-model",
+        default=None,
         help="If to ensure the model is available locally (for local provider)",
         action="store_true",
     )
@@ -257,6 +258,7 @@ def _init_args_parser() -> Namespace:
 
     parser.add_argument(
         "--dry-run",
+        default=None,
         action="store_true",
         help="Perform a dry run without actually moving files",
     )
@@ -269,6 +271,7 @@ def _init_args_parser() -> Namespace:
     # Continuous mode options (can also be set via environment variables)
     parser.add_argument(
         "--continuous",
+        default=None,
         action="store_true",
         help="Run in continuous mode (poll at interval)",
     )
