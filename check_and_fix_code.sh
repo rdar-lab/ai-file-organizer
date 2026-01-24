@@ -15,4 +15,4 @@ flake8 src --max-complexity=20 --max-line-length=200 --ignore=W293
 black --line-length=200  --no-cache -v --diff  src
 
 # Check import sorting
-isort src
+isort -n src
