@@ -219,6 +219,8 @@ class AIFacade:
         else:
             categories_dict = categories
 
+        has_sub_cats = False
+
         # Build hierarchical category list for prompt
         category_list = []
         for main_cat, sub_cats in categories_dict.items():
@@ -226,6 +228,7 @@ class AIFacade:
                 # Add parent category with its sub-categories
                 sub_cat_str = ", ".join(sub_cats)
                 category_list.append(f"{main_cat} (sub-categories: {sub_cat_str})")
+                has_sub_cats = True
             else:
                 # Just the parent category
                 category_list.append(main_cat)
@@ -245,20 +248,36 @@ class AIFacade:
                 "mode": "0o100646",
             },
         }
-        example_category_list = [
-            "Documents (sub-categories: Work, Personal)",
-            "Images",
-            "Videos",
-            "Other",
-        ]
-        example_category = "Documents/Work"
 
-        prompt = (
-            "You are an expert at organizing files. "
-            "Given the following file information, choose the most appropriate category from the list of categories. "
-            "If a category has sub-categories, choose the most specific sub-category using the format 'Category/SubCategory'. "
-            "If no sub-category fits, use just the main category name. "
-            "Return only the category name (or category/sub-category), and nothing else.\n\n"
+        if has_sub_cats:
+            example_category_list = [
+                "Documents (sub-categories: Work, Personal)",
+                "Images",
+                "Videos",
+                "Other",
+            ]
+            example_category = "Documents/Work"
+        else:
+            example_category_list = [
+                "Documents",
+                "Images",
+                "Videos",
+                "Other",
+            ]
+            example_category = "Documents"
+
+        prompt = "You are an expert at organizing files. \n Given the following file information, choose the most appropriate category from the list of categories. \n"
+
+        if has_sub_cats:
+            prompt += (
+                "If a category has sub-categories, choose the most specific sub-category using the format 'Category/SubCategory'. \n"
+                "If no sub-category fits, use just the main category name. \n"
+                "Return only the category name (or category/sub-category), and nothing else.\n\n"
+            )
+        else:
+            prompt += "Return only the category name, and nothing else.\n\n"
+
+        prompt += (
             "Example:\n"
             f'Categories: {", ".join(example_category_list)}\n'
             f"File information: {example_file}\n"
@@ -268,6 +287,7 @@ class AIFacade:
             f"File information: {file_info}\n"
             "Category:"
         )
+
         logger.info(f"LLM prompt: {prompt}")
         raw_response = self._invoke_with_retries(prompt)
         response = raw_response.content.strip()
