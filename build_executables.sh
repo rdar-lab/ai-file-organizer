@@ -5,6 +5,9 @@ set -e
 
 echo "Building AI File Organizer executables..."
 
+# Installing dependencies
+pip install -r requirements.txt -r requirements-dev.txt
+
 # Install PyInstaller if not already installed
 pip install pyinstaller
 
