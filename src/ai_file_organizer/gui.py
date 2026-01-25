@@ -1,7 +1,7 @@
 """GUI interface for AI File Organizer."""
 
-import threading
 import logging
+import threading
 from typing import Optional
 
 import FreeSimpleGUI as sg
@@ -42,14 +42,14 @@ class OrganizeFileThread:
     """Thread class to organize files using FileOrganizer."""
 
     def __init__(
-            self,
-            ai_config: dict,
-            labels: list,
-            input_folder: str,
-            output_folder: str,
-            dry_run: bool,
-            csv_report_path: Optional[str],
-            window: sg.Window,
+        self,
+        ai_config: dict,
+        labels: list,
+        input_folder: str,
+        output_folder: str,
+        dry_run: bool,
+        csv_report_path: Optional[str],
+        window: sg.Window,
     ):
         self.ai_config = ai_config
         self.labels = labels
@@ -93,8 +93,7 @@ class OrganizeFileThread:
         except Exception as e:
             logging.getLogger(__name__).exception("Error during organization: %s", e)
             try:
-                self.window.write_event_value("__ORG_DONE__",
-                                         {"total_files": 0, "processed": 0, "failed": 1, "categorization": {}})
+                self.window.write_event_value("__ORG_DONE__", {"total_files": 0, "processed": 0, "failed": 1, "categorization": {}})
             except Exception:
                 pass
 
