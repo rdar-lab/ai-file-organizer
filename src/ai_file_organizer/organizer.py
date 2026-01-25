@@ -80,7 +80,7 @@ class FileOrganizer:
                     if not os.path.exists(sub_label_dir):
                         os.makedirs(sub_label_dir)
 
-    def organize_files(self) -> Dict[str, Any]:
+    def organize_files(self, is_debug=False) -> Dict[str, Any]:
         """
         Organize files from input folder to output folder.
 
@@ -170,7 +170,11 @@ class FileOrganizer:
                 except Exception as e:
                     stats["failed"] += 1
                     error_msg = f"Error processing {filename}: {str(e)}"
-                    logger.error(error_msg)
+
+                    if is_debug:
+                        logger.exception(error_msg)
+                    else:
+                        logger.error(error_msg)
 
         # Write CSV report if requested
         if self.csv_report_path:

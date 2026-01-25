@@ -136,6 +136,7 @@ def main():
     continuous = _read_config(config, args, "continuous", "continuous", "CONTINUOUS", _str_to_bool, False)
 
     interval = _read_config(config, args, "interval", "interval", "INTERVAL", int)
+    is_debug = _read_config(config, args, "is_debug", "debug", "DEBUG_MODE", _str_to_bool, False)
 
     # Build masked ai_config for logging (don't print api_key)
     masked_ai_config = {k: v for k, v in ai_config.items() if k != "api_key"}
@@ -145,6 +146,7 @@ def main():
     logger.info(f"Input folder: {input_folder}")
     logger.info(f"Output folder: {output_folder}")
     logger.info(f"Labels: {', '.join(labels)}")
+    logger.info(f"Is Debug: {is_debug}")
 
     if dry_run:
         logging.info("*** DRY RUN MODE - No files will be moved ***")
@@ -156,14 +158,7 @@ def main():
             logger.info(f"Running in continuous mode with {interval}s interval")
             while True:
                 try:
-                    _run_once(
-                        ai_config,
-                        labels,
-                        input_folder,
-                        output_folder,
-                        dry_run,
-                        csv_report,
-                    )
+                    _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report, is_debug)
                     logger.info(f"Sleeping for {interval} seconds...")
                     time.sleep(interval)
                 except KeyboardInterrupt:
@@ -173,7 +168,7 @@ def main():
                     logger.exception(f"Error during organization cycle: {e}")
                     time.sleep(interval)
         else:
-            _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report)
+            _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report, is_debug)
     except SystemExit:
         # propagate SystemExit so callers (like docker-runner) can handle it
         raise
@@ -182,7 +177,7 @@ def main():
         sys.exit(1)
 
 
-def _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report):
+def _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report, is_debug):
     logger.info("Starting organization cycle...")
     organizer = FileOrganizer(
         ai_config,
@@ -192,7 +187,7 @@ def _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_repor
         dry_run=dry_run,
         csv_report_path=csv_report,
     )
-    stats = organizer.organize_files()
+    stats = organizer.organize_files(is_debug=is_debug)
 
     logger.info("\n" + ("=" * 50))
     logger.info("Organization Complete!")
@@ -280,6 +275,13 @@ def _init_args_parser() -> Namespace:
         "--interval",
         type=int,
         help="Interval in seconds for continuous mode (default: 60)",
+    )
+
+    parser.add_argument(
+        "--debug",
+        default=None,
+        action="store_true",
+        help="Run in debug mode",
     )
 
     args = parser.parse_args()
