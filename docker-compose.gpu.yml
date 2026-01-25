@@ -11,8 +11,3 @@ services:
               capabilities: [gpu]
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
-    # Optionally mount /dev/nvidia* devices for lower-level access if available
-    devices:
-      - /dev/nvidiactl:/dev/nvidiactl
-      - /dev/nvidia-uvm:/dev/nvidia-uvm
-      - /dev/nvidia0:/dev/nvidia0
