@@ -63,8 +63,8 @@ class TestDockerIntegration():
 
         print("Setting up docker-compose environment...")
 
-        # Start docker-compose services
-        print("Starting docker-compose services...")
+        # Start docker-compose services (only Ollama by default)
+        print("Starting docker-compose services (ollama)...")
         returncode = self.run_command(
             "docker compose up -d ollama",
             cwd=repo_root,
@@ -83,10 +83,10 @@ class TestDockerIntegration():
         # Set the environment variable for the model
         os.environ["OLLAMA_MODEL"] = _MODEL_TO_USE
 
-        # Build the ai-file-organizer image
+        # Build the ai-file-organizer image (enable profile for build)
         print("Building ai-file-organizer Docker image...")
         returncode = self.run_command(
-            "docker compose build ai-file-organizer",
+            "docker compose --profile ai-file-organizer build ai-file-organizer",
             cwd=repo_root,
             timeout=300
         )
@@ -174,7 +174,7 @@ class TestDockerIntegration():
         # Run the container with overridden volumes
         print("Running ai-file-organizer container...")
         returncode = self.run_command(
-            f"docker compose run --rm "
+            f"docker compose --profile ai-file-organizer run --rm "
             f"-v {input_dir}:/input "
             f"-v {output_dir}:/output "
             f"-v {tst_workspace['config_path']}:/app/config.yml "

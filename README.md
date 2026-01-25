@@ -22,11 +22,8 @@ pip install -e .
 ```
 
 ### Option 2: Using Docker
-```bash
-docker pull ghcr.io/rdar-lab/ai-file-organizer:latest
-```
 
-Or build locally:
+build locally:
 ```bash
 docker build -t ai-file-organizer .
 ```
@@ -41,6 +38,59 @@ Download pre-built executables for your platform from the [Releases](https://git
 - macOS: `ai-file-organizer-macos.tar.gz`
 
 No Python installation required!
+
+### Option 4: Docker compose with Ollama
+
+
+- The `ai-file-organizer` service in `docker-compose.yml` is intentionally behind a Compose profile named `ai-file-organizer`.
+  This means `docker compose up -d` will NOT create the application container by default — only the helper services (like Ollama) will start.
+
+- To enable and start the app service, either:
+    - Pass the profile: `docker compose --profile ai-file-organizer up -d`
+    - Or set the environment variable: `COMPOSE_PROFILES=ai-file-organizer docker compose up -d`
+    - Or use the provided helper scripts and pass the `--with-app` / `-WithApp` flag (see below).
+
+- NVIDIA GPU support: an optional override `docker-compose.gpu.yml` is provided. It is only included when you explicitly enable GPU usage (the helper scripts will detect GPUs and include this file automatically).
+
+- **Note: to check if GPU is supported inside the WSL2 env**
+
+  ```bash
+  # in WSL shell
+  nvidia-smi || echo "nvidia-smi not found or no GPU visible in WSL"
+  
+  # Run a quick GPU-enabled container test (will pull an image):
+  docker run --rm --gpus all nvidia/cuda:12.2.0-base-ubuntu22.04 nvidia-smi
+  ```
+
+## Helper scripts
+
+Two helper scripts are included to simplify starting the environment and automatically handle GPUs:
+
+- `scripts/start.sh` (Linux/macOS): Detects NVIDIA GPUs (via `nvidia-smi` or `/dev/nvidia*`) and will include `docker-compose.gpu.yml` when GPUs are present. Use `--with-app` to also enable the `ai-file-organizer` profile.
+
+  Examples:
+  ```bash
+  # Start Ollama only (no app)
+  ./scripts/start.sh up
+
+  # Start Ollama + enable ai-file-organizer service
+  ./scripts/start.sh up --with-app
+
+  # Stop services
+  ./scripts/start.sh down
+  ```
+
+- `scripts/start.ps1` (Windows PowerShell): Same behavior, use `-WithApp` to enable the app.
+
+  Examples:
+  ```powershell
+  # Start Ollama only
+  .\scripts\start.ps1 -Command up -Detached
+
+  # Start Ollama + app
+  .\scripts\start.ps1 -Command up -Detached -WithApp
+  ```
+
 
 ## Quick Start
 
