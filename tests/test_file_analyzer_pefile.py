@@ -39,7 +39,7 @@ def file_analyzer(monkeypatch, fake_pe):
 
 def test_get_executable_metadata_handles_list_fileinfo(monkeypatch, tmp_path):
     # Prepare a fake PE structure where FileInfo contains a list
-    entries = {b"ProductName": b"TestProduct", b"FileVersion": b"1.2.3"}
+    entries = {b"ProductName": b"TestProduct        ", b"FileVersion": b"1.2.3      "}
     st = DummyStringTable(entries)
     fi = DummyFileInfo(key=b"StringFileInfo", string_tables=[st])
     # Wrap fi in a list inside FileInfo to simulate nested list scenario
@@ -59,7 +59,7 @@ def test_get_executable_metadata_handles_list_fileinfo(monkeypatch, tmp_path):
 
 def test_get_executable_metadata_skips_non_stringfileinfo(monkeypatch, tmp_path):
     # Prepare a fake PE where FileInfo has an entry with a different Key
-    entries = {b"ProductName": b"OtherProduct"}
+    entries = {b"ProductName": b"OtherProduct       "}
     st = DummyStringTable(entries)
     fi_good = DummyFileInfo(key=b"StringFileInfo", string_tables=[st])
     fi_bad = DummyFileInfo(key=b"VarFileInfo", string_tables=[st])

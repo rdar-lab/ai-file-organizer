@@ -296,7 +296,7 @@ class FileAnalyzer:
                                         "OriginalFilename",
                                         "InternalName",
                                     ]:
-                                        metadata[k_dec] = v_dec
+                                        metadata[k_dec] = str(v_dec).strip() if v_dec else ''
 
                 return metadata if metadata else None
             finally:
