@@ -1,6 +1,7 @@
 """Core file organizer module."""
 
 import csv
+import json
 import logging
 import os
 import shutil
@@ -10,6 +11,19 @@ from .ai_facade import AIFacade
 from .file_analyzer import FileAnalyzer
 
 logger = logging.getLogger(__name__)
+
+CSV_HEADERS = [
+    "file_name",
+    "file_size",
+    "file_type",
+    "mime_type",
+    "is_executable",
+    "file_info",
+    "llm_response",
+    "category",
+    "sub_category",
+    "error",
+]
 
 
 class FileOrganizer:
@@ -95,103 +109,101 @@ class FileOrganizer:
             "categorization": {label: 0 for label in self.labels},
         }
 
-        # CSV report data
-        csv_data = []
-
         for root, _, files in os.walk(self.input_folder):
             for filename in files:
                 stats["total_files"] += 1
                 file_path = os.path.join(root, filename)
+                file_info = None
+                llm_response = None
 
                 try:
                     # Analyze file
                     file_info = self.file_analyzer.analyze_file(file_path)
 
                     # Categorize using AI (returns "Category" or "Category/SubCategory")
-                    category = self.ai_facade.categorize_file(file_info, self.labels)
+                    llm_response, category_parts = self.ai_facade.categorize_file(file_info, self.labels)
 
-                    if category is None:
+                    if category_parts is None:
                         logger.warning(f"AI returned no category for file {filename}, assigning to 'Other'")
                         category = "Other"
-
-                    # Parse category path (handles both "Category" and "Category/SubCategory")
-                    category_parts = category.split("/")
-                    main_category = category_parts[0]
-
-                    # Ensure main category exists in labels
-                    if main_category not in self.labels:
-                        logger.warning(f"AI returned unknown category '{main_category}' for file {filename}, assigning to 'Other'")
-                        category = "Other"
-                        main_category = "Other"
-
-                    # Build destination directory path
-                    category_parts = category.split("/")
-                    dest_dir = os.path.join(self.output_folder, *category_parts)
-
-                    # Create destination directory if it doesn't exist (for dry run or if missed)
-                    if not self.dry_run and not os.path.exists(dest_dir):
-                        os.makedirs(dest_dir)
-
-                    dest_path = os.path.join(dest_dir, filename)
-
-                    # Handle duplicate filenames
-                    if os.path.exists(dest_path):
-                        base, ext = os.path.splitext(filename)
-                        counter = 1
-                        max_attempts = 1000
-                        while os.path.exists(dest_path) and counter < max_attempts:
-                            new_filename = f"{base}_{counter}{ext}"
-                            dest_path = os.path.join(dest_dir, new_filename)
-                            counter += 1
-
-                        if counter >= max_attempts:
-                            raise RuntimeError(f"Could not find unique filename for {filename} after {max_attempts} attempts")
+                        sub_category = None
+                    else:
+                        category = category_parts[0]
+                        sub_category = category_parts[1] if len(category_parts) > 1 else None
 
                     if not self.dry_run:
-                        shutil.move(file_path, dest_path)
+                        self._move_file(filename, file_path, category, sub_category)
 
                     stats["processed"] += 1
-                    stats["categorization"][main_category] += 1
+                    stats["categorization"][category] += 1
 
                     message = f"{'[DRY RUN] ' if self.dry_run else ''}Moved {filename} -> {category}/"
                     logger.info(message)
 
-                    # Collect CSV data
-                    if self.csv_report_path:
-                        csv_data.append(
-                            {
-                                "file_name": filename,
-                                "file_type": file_info.get("file_type", "unknown"),
-                                "file_size": file_info.get("file_size", 0),
-                                "decided_label": category,
-                            }
-                        )
+                    self._record_file_processing(filename, file_info, llm_response, category, sub_category, "")
 
                 except Exception as e:
                     stats["failed"] += 1
-                    error_msg = f"Error processing {filename}: {str(e)}"
+                    error_msg = f"Error processing {filename}: {repr(e)}"
 
                     if is_debug:
                         logger.exception(error_msg)
                     else:
                         logger.error(error_msg)
 
-        # Write CSV report if requested
-        if self.csv_report_path:
-            try:
-                with open(self.csv_report_path, "w", newline="", encoding="utf-8") as csvfile:
-                    fieldnames = [
-                        "file_name",
-                        "file_type",
-                        "file_size",
-                        "decided_label",
-                    ]
-                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                    writer.writeheader()
-                    if csv_data:
-                        writer.writerows(csv_data)
-                logger.info(f"CSV report saved to: {self.csv_report_path}")
-            except (IOError, OSError) as e:
-                raise Exception(f"Failed to write CSV report: {str(e)}")
+                    self._record_file_processing(filename, file_info, llm_response, "", "", repr(e))
 
         return stats
+
+    def _move_file(self, filename: str, file_path: str, category: str, sub_category: str | None):
+        dest_dir = os.path.join(self.output_folder, *([category, sub_category] if sub_category else [category]))
+
+        # Create destination directory if it doesn't exist (for dry run or if missed)
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+
+        dest_path = os.path.join(dest_dir, filename)
+
+        # Handle duplicate filenames
+        if os.path.exists(dest_path):
+            base, ext = os.path.splitext(filename)
+            counter = 1
+            max_attempts = 1000
+            while os.path.exists(dest_path) and counter < max_attempts:
+                new_filename = f"{base}_{counter}{ext}"
+                dest_path = os.path.join(dest_dir, new_filename)
+                counter += 1
+
+            if counter >= max_attempts:
+                raise RuntimeError(f"Could not find unique filename for {filename} after {max_attempts} attempts")
+
+        shutil.move(file_path, dest_path)
+
+    def _record_file_processing(self, file_name: str, file_info: dict[str, Any], llm_response: str, category: str, sub_category: str, error: str):
+        if self.csv_report_path:
+            try:
+                write_header = True
+                if os.path.exists(self.csv_report_path) and os.path.getsize(self.csv_report_path) > 0:
+                    write_header = False
+
+                with open(self.csv_report_path, "a", newline="", encoding="utf-8") as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=CSV_HEADERS)
+                    if write_header:
+                        writer.writeheader()
+
+                    row = {
+                        "file_name": file_name,
+                        "file_size": file_info.get("file_size", 0) if file_info else "",
+                        "file_type": file_info.get("file_type", "unknown") if file_info else "",
+                        "mime_type": file_info.get("mime_type", "unknown") if file_info else "",
+                        "is_executable": file_info.get("is_executable", False) if file_info else "",
+                        "file_info": json.dumps(file_info, ensure_ascii=False),
+                        "llm_response": llm_response,
+                        "category": category,
+                        "sub_category": sub_category,
+                        "error": error,
+                    }
+
+                    writer.writerow(row)
+            except (IOError, OSError) as e:
+                logger.error(f"Failed to append to CSV report {self.csv_report_path}: {e}")

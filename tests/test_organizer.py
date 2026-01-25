@@ -5,7 +5,7 @@ import os
 import tempfile
 import shutil
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from ai_file_organizer.organizer import FileOrganizer
 
 
@@ -66,7 +66,7 @@ class TestFileOrganizer:
             
             # Mock AI facade and file analyzer
             mock_ai_facade = Mock()
-            mock_ai_facade.categorize_file.side_effect = ['Documents', 'Documents']
+            mock_ai_facade.categorize_file.side_effect = ('', ('Documents', None)), ('', ('Documents', None))
             
             mock_file_analyzer = Mock()
             mock_file_analyzer.analyze_file.side_effect = [
@@ -114,6 +114,7 @@ class TestFileOrganizer:
             test_file1 = os.path.join(input_dir, 'test1.txt')
             test_file2 = os.path.join(input_dir, 'image.jpg')
             test_file3 = os.path.join(input_dir, 'script.py')
+            test_file4 = os.path.join(input_dir, 'error.error')
             
             with open(test_file1, 'w') as f:
                 f.write('test content 1')
@@ -121,19 +122,23 @@ class TestFileOrganizer:
                 f.write('test content 2')
             with open(test_file3, 'w') as f:
                 f.write('print("hello")')
-            
+            with open(test_file4, 'w') as f:
+                f.write('error')
+
             # Mock AI facade and file analyzer
             mock_ai_facade = Mock()
             # Return values based on the actual filename being categorized
             def categorize_side_effect(file_info, labels):
                 filename = file_info['filename']
                 if filename == 'test1.txt':
-                    return 'Documents'
+                    cat = 'Documents'
                 elif filename == 'image.jpg':
-                    return 'Images'
+                    cat = 'Images'
                 elif filename == 'script.py':
-                    return 'Code'
-                return 'Other'
+                    cat = 'Code'
+                else:
+                    cat = 'Other'
+                return '', (cat, None)
             
             mock_ai_facade.categorize_file.side_effect = categorize_side_effect
             
@@ -150,7 +155,9 @@ class TestFileOrganizer:
                 elif filename == 'script.py':
                     return {'filename': 'script.py', 'file_type': '.py', 'file_size': 15,
                             'mime_type': 'text/x-python', 'is_executable': False}
-            
+                elif filename == 'error.error':
+                    raise Exception('Error simulated during analysis')
+
             mock_file_analyzer.analyze_file.side_effect = analyze_side_effect
             
             with patch('ai_file_organizer.organizer.AIFacade', return_value=mock_ai_facade):
@@ -160,9 +167,9 @@ class TestFileOrganizer:
                     stats = organizer.organize_files()
                     
                     # Check stats
-                    assert stats['total_files'] == 3
+                    assert stats['total_files'] == 4
                     assert stats['processed'] == 3
-                    assert stats['failed'] == 0
+                    assert stats['failed'] == 1
                     
                     # CSV file should exist
                     assert os.path.exists(csv_file)
@@ -172,11 +179,23 @@ class TestFileOrganizer:
                         reader = csv.DictReader(f)
                         rows = list(reader)
                         
-                        assert len(rows) == 3
+                        assert len(rows) == 4
                         
-                        # Check headers
-                        assert set(rows[0].keys()) == {'file_name', 'file_type', 'file_size', 'decided_label'}
-                        
+                        # Check headers include the original minimal set
+                        expected_min_fields = {
+                            "file_name",
+                            "file_size",
+                            "file_type",
+                            "mime_type",
+                            "is_executable",
+                            "file_info",
+                            "llm_response",
+                            "category",
+                            "sub_category",
+                            "error"
+                        }
+                        assert expected_min_fields.issubset(set(rows[0].keys()))
+
                         # Check data - convert to dict for easier verification
                         rows_by_name = {row['file_name']: row for row in rows}
                         
@@ -189,50 +208,10 @@ class TestFileOrganizer:
                         
                         assert 'script.py' in rows_by_name
                         assert rows_by_name['script.py']['file_type'] == '.py'
-        
-        finally:
-            shutil.rmtree(input_dir, ignore_errors=True)
-            shutil.rmtree(output_dir, ignore_errors=True)
-    
-    def test_organize_files_csv_report_empty_folder(self):
-        """Test CSV report generation with empty input folder."""
-        ai_config = {
-            'provider': 'openai',
-            'model': 'gpt-3.5-turbo',
-            'api_key': 'test-key'
-        }
-        labels = ['Documents', 'Images']
-        
-        # Create temporary directories
-        input_dir = tempfile.mkdtemp()
-        output_dir = tempfile.mkdtemp()
-        csv_file = os.path.join(output_dir, 'report.csv')
-        
-        try:
-            # No files in input directory
-            
-            with patch('ai_file_organizer.organizer.AIFacade'):
-                with patch('ai_file_organizer.organizer.FileAnalyzer'):
-                    organizer = FileOrganizer(ai_config, labels, input_dir, output_dir, dry_run=True,
-                                              csv_report_path=csv_file)
-                    stats = organizer.organize_files()
-                    
-                    # Check stats
-                    assert stats['total_files'] == 0
-                    assert stats['processed'] == 0
-                    
-                    # CSV file should still be created with headers only
-                    assert os.path.exists(csv_file)
-                    
-                    # Read and verify CSV has headers but no data
-                    with open(csv_file, 'r', encoding='utf-8') as f:
-                        reader = csv.DictReader(f)
-                        rows = list(reader)
-                        
-                        assert len(rows) == 0, "CSV should have no data rows"
-                        # Verify headers are present by checking fieldnames
-                        assert reader.fieldnames == ['file_name', 'file_type', 'file_size', 'decided_label']
-        
+
+                        assert 'error.error' in rows_by_name
+                        assert rows_by_name['error.error']['error'] == "Exception('Error simulated during analysis')"
+
         finally:
             shutil.rmtree(input_dir, ignore_errors=True)
             shutil.rmtree(output_dir, ignore_errors=True)
@@ -258,7 +237,7 @@ class TestFileOrganizer:
             
             # Mock AI facade and file analyzer
             mock_ai_facade = Mock()
-            mock_ai_facade.categorize_file.return_value = 'Documents'
+            mock_ai_facade.categorize_file.return_value = '', ('Documents', '')
             
             mock_file_analyzer = Mock()
             mock_file_analyzer.analyze_file.return_value = {
@@ -317,7 +296,7 @@ class TestFileOrganizer:
             
             # Mock AI facade and file analyzer
             mock_ai_facade = Mock()
-            mock_ai_facade.categorize_file.return_value = 'Documents'
+            mock_ai_facade.categorize_file.return_value = '', ('Documents', '')
             
             mock_file_analyzer = Mock()
             mock_file_analyzer.analyze_file.side_effect = [

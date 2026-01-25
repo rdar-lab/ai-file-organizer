@@ -10,7 +10,7 @@ from requests import Response
 logger = logging.getLogger(__name__)
 
 
-def ensure_ollama_model_available_if_local(config: Dict[str, Any], *, timeout_seconds: int = 600):
+def ensure_ollama_model_available(config: Dict[str, Any], *, timeout_seconds: int = 600):
     """Ensure Ollama model is available when using a local provider.
 
     This helper will attempt to reach the Ollama HTTP API (default: http://ollama:11434),
@@ -31,7 +31,7 @@ def ensure_ollama_model_available_if_local(config: Dict[str, Any], *, timeout_se
         raise Exception("Local provider configured but no model specified")
 
     # If ensure_model is disabled, skip
-    ensure_model = config.get("ensure_model", False)
+    ensure_model = config.get("ensure_model", True)
     if not ensure_model:
         return
 

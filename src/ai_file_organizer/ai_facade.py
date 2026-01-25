@@ -4,6 +4,7 @@ import datetime
 import logging
 import os
 import random
+import re
 import time
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
@@ -11,7 +12,7 @@ from typing import Any, Dict, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
-from .ollama_utils import ensure_ollama_model_available_if_local
+from .ollama_utils import ensure_ollama_model_available
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,6 @@ class AIFacade:
         """
         self.config = config
         self.provider = config.get("provider", "openai")
-
-        ensure_ollama_model_available_if_local(config)
 
         self.llm = self._initialize_llm()
         # Create lowercase label mapping for efficient case-insensitive matching
@@ -99,6 +98,8 @@ class AIFacade:
                 google_api_key=api_key,
             )
         elif self.provider == "local":
+            ensure_ollama_model_available(self.config)
+
             # For local LLMs (Llama, etc.) - base_url can be provided in config or via OLLAMA_URL
             base_url = self._read_config("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
             return ChatOpenAI(
@@ -201,7 +202,7 @@ class AIFacade:
 
         return is_rate_limited, retry_after
 
-    def categorize_file(self, file_info: dict, categories) -> Optional[str]:
+    def categorize_file(self, file_info: dict, categories) -> tuple[Optional[str], Optional[str]]:
         """
         Categorize a file using the LLM.
         Args:
@@ -214,11 +215,20 @@ class AIFacade:
                  or None if not confidently determined.
         """
         # Normalize categories to dict format
-        if isinstance(categories, list):
-            categories_dict = {cat: [] for cat in categories}
-        else:
-            categories_dict = categories
+        categories_dict = self._prepare_cat_dict(categories)
 
+        prompt = self._prepare_prompt(categories_dict, file_info)
+
+        logger.info(f"LLM prompt: {prompt}")
+        raw_response = self._invoke_with_retries(prompt)
+        response = raw_response.content.strip()
+        logger.info(f"LLM response: {response}")
+
+        file_name = file_info.get("filename", "unknown")
+        return response, self._detect_category_in_response(file_name, categories_dict, response)
+
+    @staticmethod
+    def _prepare_prompt(categories_dict: dict[Any, list[Any]], file_info: dict) -> str:
         has_sub_cats = False
 
         # Build hierarchical category list for prompt
@@ -287,55 +297,42 @@ class AIFacade:
             f"File information: {file_info}\n"
             "Category:"
         )
+        return prompt
 
-        logger.info(f"LLM prompt: {prompt}")
-        raw_response = self._invoke_with_retries(prompt)
-        response = raw_response.content.strip()
-        logger.info(f"LLM response: {response}")
+    @staticmethod
+    def _prepare_cat_dict(categories) -> dict[Any, list[Any]]:
+        if isinstance(categories, list):
+            categories_dict = {cat: [] for cat in categories}
+        else:
+            categories_dict = categories
+        return categories_dict
 
-        # Parse response - could be "Category" or "Category/SubCategory"
+    @staticmethod
+    def _detect_category_in_response(filename, categories_dict: dict[Any, list[Any]] | Any, response: str) -> Any:
         response_parts = response.split("/")
         main_category = response_parts[0].strip()
         sub_category = response_parts[1].strip() if len(response_parts) > 1 else None
 
-        # Validate response against available categories
-        import re
-
-        # Get filename for better logging
-        filename = file_info.get("filename", "unknown")
-
-        # Try direct match first (case-sensitive)
-        if main_category in categories_dict:
-            if sub_category:
-                # Validate sub-category exists
-                if sub_category in categories_dict[main_category]:
-                    return f"{main_category}/{sub_category}"
-                else:
-                    # Sub-category not found, return just main category
-                    logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{main_category}'." + "using main category only")
-                    return main_category
-            return main_category
-
-        # Try case-insensitive match for main category
         for cat in categories_dict.keys():
             if cat.lower() == main_category.lower():
                 if sub_category:
                     # Try case-insensitive match for sub-category
                     for sub_cat in categories_dict[cat]:
                         if sub_cat.lower() == sub_category.lower():
-                            return f"{cat}/{sub_cat}"
+                            return cat, sub_cat
                     # Sub-category not found, return just main category
                     logger.warning(f"File '{filename}': Sub-category '{sub_category}' not found in '{cat}', using main category only")
-                return cat
+                    return cat, None
+                return cat, None
 
-        # Fallback: search for category names in the response (whole word)
+        # Fallback: search for category names in the response (whole word) - no hierarchy supported here
         found = []
         for cat in categories_dict.keys():
             # Use word boundaries to avoid partial matches
             if re.search(rf"\b{re.escape(cat)}\b", response, re.IGNORECASE):
                 found.append(cat)
         if len(found) == 1:
-            return found[0]
+            return found[0], None
 
         # If none or multiple categories found, return None
         return None

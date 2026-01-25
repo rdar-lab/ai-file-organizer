@@ -105,7 +105,7 @@ class TestAIFacade:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
+            llm_response, (category, _) = facade.categorize_file(file_info, labels)
             
             assert category == 'Documents'
             mock_llm.invoke.assert_called_once()
@@ -138,7 +138,7 @@ class TestAIFacade:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
+            llm_response, (category, _) = facade.categorize_file(file_info, labels)
             
             assert category == 'Documents'
     
@@ -170,7 +170,7 @@ class TestAIFacade:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
+            llm_response, category = facade.categorize_file(file_info, labels)
             
             # Should default to first label
             assert category is None
@@ -206,7 +206,7 @@ class TestAIFacade:
             mock_openai.return_value = mock_llm
 
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
+            llm_response, (category, _) = facade.categorize_file(file_info, labels)
 
             assert category == 'Documents'
             assert mock_llm.invoke.call_count == 2

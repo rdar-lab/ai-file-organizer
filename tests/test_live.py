@@ -259,15 +259,30 @@ class TestDockerIntegration():
             assert len(rows) > 0, "CSV report is empty"
 
             # Check headers
-            expected_headers = {'file_name', 'file_type', 'file_size', 'decided_label'}
+            expected_headers = {
+                "file_name",
+                "file_size",
+                "file_type",
+                "mime_type",
+                "is_executable",
+                "file_info",
+                "llm_response",
+                "category",
+                "sub_category",
+                "error",
+            }
             assert set(rows[0].keys()) == expected_headers, f"CSV headers mismatch: {set(rows[0].keys())}"
 
-            # Verify all rows have values
             for row in rows:
                 assert row['file_name'], "file_name is empty"
-                assert row['file_type'], "file_type is empty"
                 assert row['file_size'], "file_size is empty"
-                assert row['decided_label'], "decided_label is empty"
+                assert row['file_type'], "file_type is empty"
+                assert row['mime_type'], "mime_type is empty"
+                assert row['is_executable'], "is_executable is empty"
+                assert row['llm_response'], "llm_response is empty"
+                assert row['category'], "category is empty"
+                assert row['file_type'], "file_type is empty"
+                assert not row['error'], "error is not empty"
 
             print(f"CSV report validation successful")
 

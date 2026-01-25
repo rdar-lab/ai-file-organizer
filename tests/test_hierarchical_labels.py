@@ -66,10 +66,11 @@ class TestHierarchicalLabels:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
+            llm_response, (cat, sub_cat) = facade.categorize_file(file_info, labels)
             
-            assert category == 'Documents/Work'
-    
+            assert cat == 'Documents'
+            assert sub_cat == 'Work'
+
     def test_categorize_file_main_category_only(self):
         """Test that LLM can return just main category when no sub-category fits."""
         config = {
@@ -102,10 +103,11 @@ class TestHierarchicalLabels:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
-            
-            assert category == 'Documents'
-    
+            llm_response, (cat, sub_cat) = facade.categorize_file(file_info, labels)
+
+            assert cat == 'Documents'
+            assert sub_cat is None
+
     def test_organize_files_with_hierarchical_labels(self):
         """Test file organization with hierarchical labels creates nested directories."""
         ai_config = {
@@ -130,7 +132,7 @@ class TestHierarchicalLabels:
             
             # Mock AI facade and file analyzer
             mock_ai_facade = Mock()
-            mock_ai_facade.categorize_file.return_value = 'Documents/Work'
+            mock_ai_facade.categorize_file.return_value = '', ('Documents', 'Work')
             
             mock_file_analyzer = Mock()
             mock_file_analyzer.analyze_file.return_value = {
@@ -191,11 +193,11 @@ class TestHierarchicalLabels:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
-            
-            # Should fall back to main category
-            assert category == 'Documents'
-    
+            llm_response, (cat, sub_cat) = facade.categorize_file(file_info, labels)
+
+            assert cat == 'Documents'
+            assert sub_cat is None
+
     def test_backward_compatibility_flat_list(self):
         """Test that flat list labels still work (backward compatibility)."""
         config = {
@@ -225,6 +227,7 @@ class TestHierarchicalLabels:
             mock_openai.return_value = mock_llm
             
             facade = AIFacade(config)
-            category = facade.categorize_file(file_info, labels)
-            
-            assert category == 'Documents'
+            llm_response, (cat, sub_cat) = facade.categorize_file(file_info, labels)
+
+            assert cat == 'Documents'
+            assert sub_cat is None
