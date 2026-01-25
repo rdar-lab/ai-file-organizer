@@ -107,23 +107,35 @@ Organize files using AI categorization.
 
 **Constructor:**
 ```python
-FileOrganizer(ai_config: Dict[str, Any], labels: List[str])
+FileOrganizer(
+    ai_config: Dict[str, Any], 
+    labels: Union[List[str], Dict[str, List[str]]],
+    input_folder: str,
+    output_folder: str,
+    dry_run: bool = False,
+    csv_report_path: Optional[str] = None,
+    is_debug: bool = False,
+    cancel_event: Optional[threading.Event] = None
+)
 ```
 
 **Parameters:**
 - `ai_config` (dict): Configuration for AI/LLM
-- `labels` (list): List of category labels
+- `labels` (list or dict): List of category labels or hierarchical dict of labels with sub-labels
+  - Flat list example: `['Documents', 'Images', 'Videos']`
+  - Hierarchical example: `{'Documents': ['Work', 'Personal'], 'Images': [], 'Videos': []}`
+- `input_folder` (str): Source folder containing files to organize
+- `output_folder` (str): Destination folder for organized files
+- `dry_run` (bool): If True, don't actually move files, just show what would happen
+- `csv_report_path` (str, optional): Optional path to save CSV report of file classification
+- `is_debug` (bool): If True, enable debug logging
+- `cancel_event` (threading.Event, optional): Optional threading.Event to signal cancellation
 
 **Methods:**
 
-##### `organize_files(input_folder: str, output_folder: str, dry_run: bool = False) -> Dict[str, Any]`
+##### `organize_files() -> Dict[str, Any]`
 
 Organize files from input folder to output folder.
-
-**Parameters:**
-- `input_folder` (str): Source folder containing files to organize
-- `output_folder` (str): Destination folder for organized files
-- `dry_run` (bool): If True, don't actually move files
 
 **Returns:**
 - `dict`: Statistics dictionary with keys:
@@ -140,8 +152,14 @@ ai_config = {
     'api_key': 'sk-xxx'
 }
 
-organizer = FileOrganizer(ai_config, ['Documents', 'Images', 'Videos'])
-stats = organizer.organize_files('/input', '/output', dry_run=False)
+organizer = FileOrganizer(
+    ai_config, 
+    ['Documents', 'Images', 'Videos'],
+    input_folder='/input',
+    output_folder='/output',
+    dry_run=False
+)
+stats = organizer.organize_files()
 
 print(f"Processed: {stats['processed']}")
 print(f"Failed: {stats['failed']}")
@@ -189,7 +207,7 @@ ai-file-organizer -i /input -o /output -l Documents Images --api-key sk-xxx
 
 Main GUI entry point.
 
-Launches PySimpleGUI interface for file organization.
+Launches FreeSimpleGUI interface for file organization.
 
 **Features:**
 - Folder selection via file browser
@@ -221,12 +239,14 @@ ai_config = {
 
 labels = ['Documents', 'Images', 'Videos', 'Audio', 'Other']
 
-organizer = FileOrganizer(ai_config, labels)
-stats = organizer.organize_files(
+organizer = FileOrganizer(
+    ai_config, 
+    labels,
     input_folder='/home/user/Downloads',
     output_folder='/home/user/Organized',
     dry_run=False
 )
+stats = organizer.organize_files()
 ```
 
 ### Using Azure OpenAI
@@ -245,8 +265,13 @@ ai_config = {
 
 labels = ['Work', 'Personal', 'Projects']
 
-organizer = FileOrganizer(ai_config, labels)
-stats = organizer.organize_files('/input', '/output')
+organizer = FileOrganizer(
+    ai_config, 
+    labels,
+    input_folder='/input',
+    output_folder='/output'
+)
+stats = organizer.organize_files()
 ```
 
 ### Using Local LLM
@@ -258,14 +283,19 @@ ai_config = {
     'provider': 'local',
     'model': 'llama2',
     'temperature': 0.3,
-    'base_url': 'http://localhost:8000/v1',
+    'base_url': 'http://localhost:11434/v1',
     'api_key': 'not-needed'
 }
 
 labels = ['Code', 'Docs', 'Assets', 'Other']
 
-organizer = FileOrganizer(ai_config, labels)
-stats = organizer.organize_files('/input', '/output')
+organizer = FileOrganizer(
+    ai_config, 
+    labels,
+    input_folder='/input',
+    output_folder='/output'
+)
+stats = organizer.organize_files()
 ```
 
 ### Custom File Analysis
@@ -301,7 +331,14 @@ with open('config.yml', 'r') as f:
 
 ai_config = config['ai']
 labels = config['labels']
+input_folder = config.get('input_folder', '/input')
+output_folder = config.get('output_folder', '/output')
 
-organizer = FileOrganizer(ai_config, labels)
-stats = organizer.organize_files('/input', '/output')
+organizer = FileOrganizer(
+    ai_config, 
+    labels,
+    input_folder=input_folder,
+    output_folder=output_folder
+)
+stats = organizer.organize_files()
 ```
