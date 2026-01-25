@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import shutil
+import threading
 from typing import Any, Dict, List, Optional, Union
 
 from .ai_facade import AIFacade
@@ -37,6 +38,8 @@ class FileOrganizer:
         output_folder: str,
         dry_run: bool = False,
         csv_report_path: Optional[str] = None,
+        is_debug=False,
+        cancel_event: Optional[threading.Event] = None,
     ):
         """
         Initialize the file organizer.
@@ -51,8 +54,12 @@ class FileOrganizer:
             output_folder: Destination folder for organized files
             dry_run: If True, don't actually move files, just show what would happen
             csv_report_path: Optional path to save CSV report of file classification
+            is_debug: If True, enable debug logging
+            cancel_event: Optional threading.Event to signal cancellation
         """
-        self.ai_facade = AIFacade(ai_config)
+        self.is_debug = is_debug
+        self.cancel_event = cancel_event
+        self.ai_facade = AIFacade(ai_config, cancel_event=self.cancel_event)
         self.file_analyzer = FileAnalyzer()
 
         # Normalize labels to hierarchical format
@@ -94,7 +101,7 @@ class FileOrganizer:
                     if not os.path.exists(sub_label_dir):
                         os.makedirs(sub_label_dir)
 
-    def organize_files(self, is_debug=False) -> Dict[str, Any]:
+    def organize_files(self) -> Dict[str, Any]:
         """
         Organize files from input folder to output folder.
 
@@ -111,6 +118,11 @@ class FileOrganizer:
 
         for root, _, files in os.walk(self.input_folder):
             for filename in files:
+                # Check for cancellation request before processing each file
+                if self.cancel_event is not None and self.cancel_event.is_set():
+                    logger.info("Cancellation requested, stopping organization")
+                    return stats
+
                 stats["total_files"] += 1
                 file_path = os.path.join(root, filename)
                 file_info = None
@@ -146,7 +158,7 @@ class FileOrganizer:
                     stats["failed"] += 1
                     error_msg = f"Error processing {filename}: {repr(e)}"
 
-                    if is_debug:
+                    if self.is_debug:
                         logger.exception(error_msg)
                     else:
                         logger.error(error_msg)

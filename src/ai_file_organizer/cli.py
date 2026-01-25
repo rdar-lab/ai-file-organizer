@@ -179,15 +179,8 @@ def main():
 
 def _run_once(ai_config, labels, input_folder, output_folder, dry_run, csv_report, is_debug):
     logger.info("Starting organization cycle...")
-    organizer = FileOrganizer(
-        ai_config,
-        labels,
-        input_folder,
-        output_folder,
-        dry_run=dry_run,
-        csv_report_path=csv_report,
-    )
-    stats = organizer.organize_files(is_debug=is_debug)
+    organizer = FileOrganizer(ai_config, labels, input_folder, output_folder, dry_run=dry_run, csv_report_path=csv_report, is_debug=is_debug)
+    stats = organizer.organize_files()
 
     logger.info("\n" + ("=" * 50))
     logger.info("Organization Complete!")

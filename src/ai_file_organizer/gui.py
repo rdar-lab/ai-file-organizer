@@ -50,6 +50,7 @@ class OrganizeFileThread:
         dry_run: bool,
         csv_report_path: Optional[str],
         window: sg.Window,
+        cancel_event: Optional[threading.Event] = None,
     ):
         self.ai_config = ai_config
         self.labels = labels
@@ -58,9 +59,13 @@ class OrganizeFileThread:
         self.dry_run = dry_run
         self.csv_report_path = csv_report_path
         self.window = window
+        self.cancel_event = cancel_event
 
     def run(self):
         """Thread function to organize files. Use logging for messages and write a done event when finished."""
+
+        stats = {"total_files": 0, "processed": 0, "failed": 1, "categorization": {}}
+
         try:
             logger.info("Starting file organization...")
             logger.info("Input folder: %s", self.input_folder)
@@ -72,33 +77,31 @@ class OrganizeFileThread:
             if self.dry_run:
                 logger.info("*** DRY RUN MODE - No files will be moved ***")
 
-            organizer = FileOrganizer(
-                self.ai_config,
-                self.labels,
-                self.input_folder,
-                self.output_folder,
-                dry_run=self.dry_run,
-                csv_report_path=self.csv_report_path,
-            )
+            organizer = FileOrganizer(self.ai_config, self.labels, self.input_folder, self.output_folder, dry_run=self.dry_run, csv_report_path=self.csv_report_path, cancel_event=self.cancel_event)
 
+            # Pass cancel_event to organizer so it can stop cooperatively
             stats = organizer.organize_files()
-
-            # Send done event with stats so main loop can update UI in the main thread
-            try:
-                self.window.write_event_value("__ORG_DONE__", stats)
-            except Exception:
-                # Fallback: log the completion
-                logger.info("Organization finished: %s", stats)
+            logger.info("Organization finished: %s", stats)
 
         except Exception as e:
             logging.getLogger(__name__).exception("Error during organization: %s", e)
+        finally:
+            # Finally, send done event with stats (or zeroed stats on error)
             try:
-                self.window.write_event_value("__ORG_DONE__", {"total_files": 0, "processed": 0, "failed": 1, "categorization": {}})
+                self.window.write_event_value("__ORG_DONE__", stats)
             except Exception:
                 pass
 
 
 def main():  # noqa: C901
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger.info("Starting up...")
+
     """Main GUI entry point."""
     sg.theme("DarkBlue3")
 
@@ -168,7 +171,7 @@ def main():  # noqa: C901
         [sg.HorizontalSeparator()],
         [
             sg.Button("Start Organizing", size=(15, 1)),
-            sg.Button("Cancel", size=(15, 1)),
+            sg.Button("Cancel", size=(15, 1), disabled=True),
             # Buttons to save/load configuration in the same YAML format as the CLI
             sg.Button("Save Config", size=(12, 1)),
             sg.Button("Load Config", size=(12, 1)),
@@ -287,6 +290,9 @@ def main():  # noqa: C901
 
     # Keep reference to optional log window and handler
     log_handler: Optional[logging.Handler] = None
+    # Track background worker and cancellation event
+    worker_thread: Optional[threading.Thread] = None
+    worker_cancel_event: Optional[threading.Event] = None
 
     # Event loop - use read_all_windows so we can handle the log window and events from worker threads
     while True:
@@ -322,9 +328,17 @@ def main():  # noqa: C901
                     pass
                 log_handler = None
 
+            # Reset cancellation state and worker reference
+            try:
+                worker_cancel_event = None
+                worker_thread = None
+            except Exception:
+                pass
+
             # Update UI: re-enable Start button and show stats in main output
             try:
                 window["Start Organizing"].update(disabled=False)
+                window["Cancel"].update(disabled=True)
             except Exception:
                 pass
 
@@ -349,7 +363,24 @@ def main():  # noqa: C901
             # Keep the log window open for user to inspect; user can close it manually
             continue
 
-        if event == sg.WIN_CLOSED or event == "Cancel":
+        # If user closed the window, exit. If they pressed Cancel, cancel the running job if any; otherwise exit.
+        if event == sg.WIN_CLOSED:
+            break
+        if event == "Cancel":
+            # If a worker is running, request cancellation
+            if worker_thread is not None and worker_thread.is_alive():
+                if worker_cancel_event is not None:
+                    logger.info("User requested cancellation of the current job")
+                    worker_cancel_event.set()
+                    # Inform user in UI
+                    try:
+                        window["output"].print("Cancellation requested. Waiting for current operation to stop...")
+                    except Exception:
+                        pass
+                    # Do not close the app; wait for __ORG_DONE__ from worker
+                    continue
+
+            # No active job -> treat as close
             break
 
         if event == "Save Config":
@@ -417,6 +448,8 @@ def main():  # noqa: C901
 
             # Disable the start button
             window["Start Organizing"].update(disabled=True)
+            window["Cancel"].update(disabled=False)
+
             window["output"].update("")
             window["progress"].update(0)
 
@@ -427,7 +460,10 @@ def main():  # noqa: C901
                 log_handler.setFormatter(formatter)
                 logging.getLogger().addHandler(log_handler)
 
-            thread = OrganizeFileThread(
+            # Create a cancellation event for cooperative shutdown
+            worker_cancel_event = threading.Event()
+
+            task = OrganizeFileThread(
                 ai_config=ai_config,
                 labels=labels,
                 input_folder=values["input_folder"],
@@ -435,11 +471,12 @@ def main():  # noqa: C901
                 dry_run=values["dry_run"],
                 csv_report_path=values.get("csv_report"),
                 window=window,
+                cancel_event=worker_cancel_event,
             )
 
             # Start organizing in a separate thread
-            thread = threading.Thread(target=thread.run, daemon=True)
-            thread.start()
+            worker_thread = threading.Thread(target=task.run, daemon=True)
+            worker_thread.start()
 
     # End event loop
     # Close any remaining windows

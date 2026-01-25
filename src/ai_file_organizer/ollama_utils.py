@@ -1,7 +1,8 @@
 import logging
 import os
+import threading
 import time
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -10,7 +11,7 @@ from requests import Response
 logger = logging.getLogger(__name__)
 
 
-def ensure_ollama_model_available(config: Dict[str, Any], *, timeout_seconds: int = 600):
+def ensure_ollama_model_available(config: Dict[str, Any], *, timeout_seconds: int = 600, cancel_event: Optional[threading.Event] = None):
     """Ensure Ollama model is available when using a local provider.
 
     This helper will attempt to reach the Ollama HTTP API (default: http://ollama:11434),
@@ -42,7 +43,7 @@ def ensure_ollama_model_available(config: Dict[str, Any], *, timeout_seconds: in
     ollama_base = _get_ollama_base(config)
 
     # Wait for Ollama API to be reachable
-    _wait_for_ollama_api(ollama_base, timeout_seconds=timeout_seconds)
+    _wait_for_ollama_api(ollama_base, timeout_seconds=timeout_seconds, cancel_event=cancel_event)
 
     if _check_if_model_available(ollama_base, model_name):
         logger.info("Model %s already present in Ollama", model_name)
@@ -50,13 +51,16 @@ def ensure_ollama_model_available(config: Dict[str, Any], *, timeout_seconds: in
 
     _pull_model(ollama_base, model_name, timeout_seconds=timeout_seconds)
 
-    _wait_for_model_to_be_available(ollama_base, model_name, timeout_seconds=timeout_seconds)
+    _wait_for_model_to_be_available(ollama_base, model_name, timeout_seconds=timeout_seconds, cancel_event=cancel_event)
 
 
-def _wait_for_model_to_be_available(ollama_base: str, model_name: str, timeout_seconds):
+def _wait_for_model_to_be_available(ollama_base: str, model_name: str, timeout_seconds, cancel_event: Optional[threading.Event] = None):
     # Poll until model appears or timeout
     start = time.time()
     while time.time() - start < timeout_seconds:
+        if cancel_event is not None and cancel_event.is_set():
+            raise Exception("Cancelled while waiting for Ollama API")
+
         # noinspection PyBroadException
         try:
             if _check_if_model_available(ollama_base, model_name):
@@ -69,10 +73,13 @@ def _wait_for_model_to_be_available(ollama_base: str, model_name: str, timeout_s
     raise Exception(f"Timed out waiting for Ollama model {model_name} after {timeout_seconds} seconds")
 
 
-def _wait_for_ollama_api(ollama_base: str, timeout_seconds: int = 120):
+def _wait_for_ollama_api(ollama_base: str, timeout_seconds: int = 120, cancel_event: Optional[threading.Event] = None):
     # Wait for Ollama API to be reachable
     logger.info("Waiting for Ollama API at %s...", ollama_base)
     for _ in range(int(timeout_seconds / 2)):
+        if cancel_event is not None and cancel_event.is_set():
+            raise Exception("Cancelled while waiting for Ollama API")
+
         # noinspection PyBroadException
         try:
             resp = _get_tags(ollama_base)

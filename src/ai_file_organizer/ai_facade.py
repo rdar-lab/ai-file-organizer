@@ -5,6 +5,7 @@ import logging
 import os
 import random
 import re
+import threading
 import time
 from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 class AIFacade:
     """Facade for AI/LLM operations using langchain."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], cancel_event: Optional[threading.Event] = None):
         """
         Initialize AI facade with configuration.
 
@@ -35,7 +36,11 @@ class AIFacade:
                 - retries: (optional) number of retry attempts for LLM calls
                 - backoff_factor: (optional) base backoff multiplier in seconds
                 - max_backoff: (optional) maximum backoff in seconds
+                - backoff_factor_rate_limit: (optional) base backoff multiplier in seconds - in rate-limit scenarios
+                - max_backoff_rate_limit: (optional) maximum backoff in seconds - in rate-limit scenarios
+            cancel_event: Optional threading.Event to support cancellation.
         """
+        self._cancel_event = cancel_event
         self.config = config
         self.provider = config.get("provider", "openai")
 
@@ -98,7 +103,7 @@ class AIFacade:
                 google_api_key=api_key,
             )
         elif self.provider == "local":
-            ensure_ollama_model_available(self.config)
+            ensure_ollama_model_available(self.config, cancel_event=self._cancel_event)
 
             # For local LLMs (Llama, etc.) - base_url can be provided in config or via OLLAMA_URL
             base_url = self._read_config("base_url", os.getenv("OLLAMA_URL", "http://localhost:11434/v1"))
@@ -120,6 +125,9 @@ class AIFacade:
         """
         attempt = 0
         while True:
+            if self._cancel_event is not None and self._cancel_event.is_set():
+                raise Exception("Cancelled while waiting for Ollama API")
+
             try:
                 logger.debug("LLM invoke attempt %d", attempt + 1)
                 raw_response = self.llm.invoke(prompt)
