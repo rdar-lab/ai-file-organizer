@@ -256,14 +256,37 @@ class FileAnalyzer:
 
                 # Extract version information if available
                 if hasattr(pe, "FileInfo") and pe.FileInfo:
+                    # pe.FileInfo can contain nested lists or objects depending on the PE structure
                     for fileinfo in pe.FileInfo:
-                        if fileinfo.Key == b"StringFileInfo":
-                            for st in fileinfo.StringTable:
-                                for entry in st.entries.items():
-                                    key = entry[0].decode("utf-8", errors="ignore")
-                                    value = entry[1].decode("utf-8", errors="ignore")
+                        # Normalize to an iterable of fileinfo-like objects
+                        candidates = fileinfo if isinstance(fileinfo, (list, tuple)) else [fileinfo]
+                        for fi in candidates:
+                            if fi is None:
+                                continue
+
+                            # Determine where StringTable entries live. Some implementations expose a Key
+                            # attribute (e.g. b"StringFileInfo"); others may expose StringTable directly.
+                            key = getattr(fi, "Key", None)
+                            if key is not None and key != b"StringFileInfo":
+                                # Not the string table we're interested in
+                                continue
+
+                            string_tables = getattr(fi, "StringTable", []) or []
+                            for st in string_tables:
+                                entries = getattr(st, "entries", {}) or {}
+                                for k, v in entries.items():
+                                    # Decode keys/values safely
+                                    if isinstance(k, bytes):
+                                        k_dec = k.decode("utf-8", errors="ignore")
+                                    else:
+                                        k_dec = str(k)
+                                    if isinstance(v, bytes):
+                                        v_dec = v.decode("utf-8", errors="ignore")
+                                    else:
+                                        v_dec = str(v)
+
                                     # Common version info fields
-                                    if key in [
+                                    if k_dec in [
                                         "FileDescription",
                                         "ProductName",
                                         "CompanyName",
@@ -273,7 +296,7 @@ class FileAnalyzer:
                                         "OriginalFilename",
                                         "InternalName",
                                     ]:
-                                        metadata[key] = value
+                                        metadata[k_dec] = v_dec
 
                 return metadata if metadata else None
             finally:
