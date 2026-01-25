@@ -408,6 +408,31 @@ This will analyze all files without moving them and generate a CSV report contai
 - `file_size`: Size in bytes
 - `decided_label`: The category assigned by the AI
 
+### Example 6: Using DeepSeek model (16GB GPU required)
+
+```yaml
+ai:
+  provider: local
+  model: deepseek-r1:14b
+  temperature: 0.3
+labels:
+- Apps
+- Documents
+- Images
+- Videos
+- Audio
+- Other
+- Logs
+- Junk
+- Guides
+- Datasheets
+- Invoices
+- Agreements
+input_folder: K:/Downloads
+output_folder: K:/Organized
+csv_report: K:/Organized/report.csv
+```
+
 ## Development
 
 ### Running Tests
