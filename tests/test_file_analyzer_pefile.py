@@ -1,7 +1,5 @@
 import types
 
-import pytest
-
 
 class DummyStringTable:
     def __init__(self, entries):
@@ -37,6 +35,7 @@ def file_analyzer(monkeypatch, fake_pe):
     monkeypatch.setattr(fa, "PEFILE_AVAILABLE", True)
 
     return fa.FileAnalyzer()
+
 
 def test_get_executable_metadata_handles_list_fileinfo(monkeypatch, tmp_path):
     # Prepare a fake PE structure where FileInfo contains a list
