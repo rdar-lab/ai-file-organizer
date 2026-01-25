@@ -1,9 +1,11 @@
 """AI facade module for LLM integration using langchain."""
 
+import datetime
 import logging
 import os
 import random
 import time
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -44,12 +46,13 @@ class AIFacade:
 
         # Retry configuration (kept small by default so unit tests run fast)
         self._retries = int(config.get("retries", 2))
-        self._backoff_factor = float(config.get("backoff_factor", 0.1))
-        self._max_backoff = float(config.get("max_backoff", 1.0))
+        self._backoff_factor = float(config.get("backoff_factor", 1.0))
+        self._max_backoff = float(config.get("max_backoff", 60.0))
         # Allow a larger max backoff specifically for rate-limited (429) responses
         # This helps when providers return Retry-After headers or when quota throttles
         # require longer pauses. Default is conservative but configurable.
-        self._max_backoff_429 = float(config.get("max_backoff_429", 60.0))
+        self._backoff_factor_rate_limit = float(config.get("backoff_factor_rate_limit", 10.0))
+        self._max_backoff_rate_limit = float(config.get("max_backoff_rate_limit", 120.0))
 
     def _read_config(self, config_value, default_value=None):
         val = self.config.get(config_value)
@@ -127,37 +130,7 @@ class AIFacade:
                     raise
 
                 # Detect rate-limit / resource exhausted errors (common signals: 429, 'RESOURCE_EXHAUSTED')
-                is_rate_limited = False
-                retry_after = None
-
-                # Try to extract status code or retry headers from common exception shapes
-                try:
-                    # requests / httpx like
-                    if hasattr(exc, "response") and exc.response is not None:
-                        resp = exc.response
-                        # status code attribute
-                        if hasattr(resp, "status_code"):
-                            if int(getattr(resp, "status_code")) == 429:
-                                is_rate_limited = True
-                        # headers
-                        headers = getattr(resp, "headers", None) or getattr(resp, "headers", {})
-                        if headers:
-                            # header keys can be case-insensitive
-                            ra = headers.get("Retry-After") or headers.get("retry-after")
-                            if ra is not None:
-                                try:
-                                    retry_after = float(ra)
-                                except Exception:
-                                    # sometimes it's an HTTP-date; skip parsing here
-                                    retry_after = None
-                except Exception:
-                    # ignore parsing errors and fall back to string matching
-                    pass
-
-                # Fallback string checks on exception message
-                exc_text = str(exc)
-                if not is_rate_limited and ("429" in exc_text or "RESOURCE_EXHAUSTED" in exc_text or "quota" in exc_text.lower()):
-                    is_rate_limited = True
+                is_rate_limited, retry_after = self._check_if_rate_limit_error(exc)
 
                 # Compute backoff
                 if is_rate_limited:
@@ -166,9 +139,7 @@ class AIFacade:
                         sleep_time = float(retry_after) + random.uniform(0, 0.1 * float(retry_after))
                     else:
                         # Use a larger cap for 429s
-                        backoff = min(self._max_backoff_429, self._backoff_factor * (2 ** (attempt - 1)))
-                        jitter = random.uniform(0, backoff * 0.1)
-                        sleep_time = backoff + jitter
+                        sleep_time = min(self._max_backoff_rate_limit, self._backoff_factor_rate_limit * (2 ** (attempt - 1)))
                     logger.warning(
                         "LLM invoke rate-limited (attempt %d/%d): %s - retrying in %.2fs",
                         attempt,
@@ -178,9 +149,7 @@ class AIFacade:
                     )
                 else:
                     # exponential backoff with jitter for non-rate-limit errors
-                    backoff = min(self._max_backoff, self._backoff_factor * (2 ** (attempt - 1)))
-                    jitter = random.uniform(0, backoff * 0.1)
-                    sleep_time = backoff + jitter
+                    sleep_time = min(self._max_backoff, self._backoff_factor * (2 ** (attempt - 1)))
                     logger.warning(
                         "LLM invoke failed (attempt %d/%d): %s - retrying in %.2fs",
                         attempt,
@@ -190,6 +159,47 @@ class AIFacade:
                     )
 
                 time.sleep(sleep_time)
+
+    # noinspection PyUnresolvedReferences,PyBroadException
+    @staticmethod
+    def _check_if_rate_limit_error(exc: Exception) -> tuple[bool, float]:
+        is_rate_limited = False
+        retry_after = None
+
+        # Try to extract status code or retry headers from common exception shapes
+        try:
+            # requests / httpx like
+            if hasattr(exc, "response") and exc.response is not None:
+                resp = exc.response
+                # status code attribute
+                if hasattr(resp, "status_code"):
+                    if int(getattr(resp, "status_code")) == 429:
+                        is_rate_limited = True
+                # headers
+                headers = getattr(resp, "headers", None) or getattr(resp, "headers", {})
+                if headers:
+                    # header keys can be case-insensitive
+                    ra = headers.get("Retry-After") or headers.get("retry-after")
+                    if ra is not None:
+                        try:
+                            retry_after = float(ra)
+                        except Exception:
+                            # sometimes it's an HTTP-date - parse it and substract current time
+                            try:
+                                retry_after_dt = parsedate_to_datetime(ra)
+                                retry_after = (retry_after_dt - datetime.datetime.now(datetime.timezone.utc)).total_seconds()
+                            except Exception:
+                                pass
+        except Exception:
+            # ignore parsing errors and fall back to string matching
+            pass
+
+        # Fallback string checks on exception message
+        exc_text = str(exc)
+        if not is_rate_limited and ("429" in exc_text or "RESOURCE_EXHAUSTED" in exc_text or "quota" in exc_text.lower()):
+            is_rate_limited = True
+
+        return is_rate_limited, retry_after
 
     def categorize_file(self, file_info: dict, categories) -> Optional[str]:
         """
