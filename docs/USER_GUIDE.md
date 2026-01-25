@@ -8,6 +8,8 @@ AI File Organizer is a tool that uses artificial intelligence to automatically c
 
 ### Installation
 
+**Requirements:** Python 3.11 or higher
+
 Install the package using pip:
 
 ```bash
@@ -62,14 +64,22 @@ ai-file-organizer -i /path/to/input -o /path/to/output -c config.yml
 
 ### Command-Line Options
 
-- `-i, --input`: Path to the folder containing files to organize
-- `-o, --output`: Path where organized files should be saved
+- `-i, --input`: Path to the folder containing files to organize (can also be set via config or INPUT_FOLDER env var)
+- `-o, --output`: Path where organized files should be saved (can also be set via config or OUTPUT_FOLDER env var)
 - `-l, --labels`: List of categories (e.g., `-l Documents Images Videos`)
 - `-c, --config`: Path to YAML configuration file
-- `--provider`: LLM provider (openai, azure, or local)
+- `--provider`: LLM provider (openai, azure, google, or local)
 - `--model`: Model name
 - `--api-key`: API key for the LLM
+- `--azure-endpoint`: Azure endpoint URL (for Azure provider)
+- `--base-url`: Base URL for local LLM (default: http://localhost:11434/v1)
+- `--ensure-model`: Ensure the model is available locally (for local provider)
+- `--temperature`: Temperature for LLM (default: 0.3)
 - `--dry-run`: Preview what would happen without moving files
+- `--csv-report`: Path to save CSV report of file classification
+- `--continuous`: Run in continuous mode (poll at interval)
+- `--interval`: Interval in seconds for continuous mode (default: 60)
+- `--debug`: Run in debug mode
 
 ### Examples
 
@@ -98,6 +108,26 @@ ai-file-organizer \
   -o ./organized \
   -l "Work Documents" "Personal Photos" "Project Files" "Misc" \
   --api-key sk-YOUR_KEY
+```
+
+**Continuous mode (auto-organize as files are added):**
+```bash
+ai-file-organizer \
+  -i ~/Downloads \
+  -o ~/OrganizedDownloads \
+  -c config.yml \
+  --continuous \
+  --interval 60
+```
+
+**Debug mode (verbose logging):**
+```bash
+ai-file-organizer \
+  -i ~/Downloads \
+  -o ~/OrganizedDownloads \
+  -l Documents Images Videos \
+  --api-key sk-YOUR_KEY \
+  --debug
 ```
 
 ## Using the GUI
@@ -133,7 +163,7 @@ ai-file-organizer-gui
 ```yaml
 # AI/LLM Configuration
 ai:
-  provider: openai           # Options: openai, azure, local
+  provider: openai           # Options: openai, azure, google, local
   model: gpt-3.5-turbo      # Model name
   temperature: 0.3           # 0.0-1.0, lower is more deterministic
   api_key: YOUR_KEY         # Or use environment variable
@@ -143,9 +173,10 @@ ai:
   deployment_name: your-deployment
   
   # Local LLM (only if provider is local)
-  base_url: http://localhost:8000/v1
+  base_url: http://localhost:11434/v1
+  ensure_model: true         # Ensure the model is available locally
 
-# Category labels
+# Category labels (can be flat list or hierarchical)
 labels:
   - Documents
   - Images
@@ -154,6 +185,31 @@ labels:
   - Archives
   - Code
   - Other
+
+# OR use hierarchical labels with sub-categories
+# labels:
+#   Documents:
+#     - Work
+#     - Personal
+#   Images:
+#     - Photos
+#     - Screenshots
+#   Code: []
+#   Other: []
+
+# Optional: Folder paths
+input_folder: /path/to/input
+output_folder: /path/to/output
+
+# Optional: Continuous mode
+continuous: false
+interval: 60  # Seconds between scans in continuous mode
+
+# Optional: CSV report
+csv_report: /path/to/report.csv
+
+# Optional: Dry run mode
+dry_run: false
 ```
 
 ## How Categorization Works
@@ -200,6 +256,46 @@ Always test with `--dry-run` first to:
 - For large folders, use gpt-3.5-turbo (faster and cheaper)
 - For better accuracy, use gpt-4
 - Local LLMs can be faster but may be less accurate
+
+### Continuous Mode
+
+Run the organizer continuously to automatically organize files as they arrive:
+
+```bash
+ai-file-organizer \
+  -i ~/Downloads \
+  -o ~/Organized \
+  -c config.yml \
+  --continuous \
+  --interval 60
+```
+
+Or set it in your config file:
+
+```yaml
+continuous: true
+interval: 60  # Check every 60 seconds
+```
+
+This is useful for:
+- Automatically organizing downloads as they arrive
+- Monitoring a shared folder for new files
+- Running as a background service
+
+To stop continuous mode, press Ctrl+C.
+
+### Debug Mode
+
+Enable debug mode for detailed logging:
+
+```bash
+ai-file-organizer -i input -o output -l Documents Images --api-key sk-xxx --debug
+```
+
+Debug mode provides:
+- Detailed stack traces for errors
+- More verbose logging
+- Helpful for troubleshooting issues
 
 ## Troubleshooting
 

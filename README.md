@@ -15,6 +15,9 @@ An intelligent file organization tool that uses AI/LLM models to automatically c
 ## Installation
 
 ### Option 1: From Source
+
+**Requirements:** Python 3.11 or higher
+
 ```bash
 git clone https://github.com/rdar-lab/ai-file-organizer.git
 cd ai-file-organizer
@@ -182,7 +185,7 @@ ai:
   # api_key: YOUR_GOOGLE_API_KEY
   
   # For Local LLM
-  # base_url: http://localhost:8000/v1
+  # base_url: http://localhost:11434/v1
 
 # Category labels - Simple list format (flat structure)
 labels:
@@ -291,7 +294,7 @@ ai-file-organizer -i input -o output \
 ai-file-organizer -i input -o output \
   --provider local \
   --model llama2 \
-  --base-url http://localhost:8000/v1 \
+  --base-url http://localhost:11434/v1 \
   -l Documents Images Videos
 ```
 
@@ -313,18 +316,22 @@ ai-file-organizer -i input -o output \
 ## CLI Options
 
 ```
--i, --input          Input folder containing files to organize (required)
--o, --output         Output folder for organized files (required)
--l, --labels         List of category labels (space-separated)
+-i, --input          Input folder containing files to organize (can also be set via config or INPUT_FOLDER env var)
+-o, --output         Output folder for organized files (can also be set via config or OUTPUT_FOLDER env var)
+-l, --labels         List of category labels (space-separated, can also be set via config or LABELS env var)
 -c, --config         Path to configuration file (YAML)
 --provider           LLM provider: openai, azure, google, or local (default: openai)
 --model              Model name (default: gpt-3.5-turbo)
 --api-key            API key for the LLM provider
 --azure-endpoint     Azure endpoint URL (for Azure provider)
---base-url           Base URL for local LLM (for local provider)
+--base-url           Base URL for local LLM (for local provider, default: http://localhost:11434/v1)
+--ensure-model       Ensure the model is available locally (for local provider)
 --temperature        Temperature for LLM (default: 0.3)
 --dry-run            Perform a dry run without actually moving files
 --csv-report         Path to save CSV report of file classification (useful with --dry-run)
+--continuous         Run in continuous mode (poll at interval)
+--interval           Interval in seconds for continuous mode (default: 60)
+--debug              Run in debug mode
 ```
 
 ## Examples
@@ -433,6 +440,22 @@ output_folder: K:/Organized
 csv_report: K:/Organized/report.csv
 ```
 
+### Example 7: Continuous Mode
+
+Run the organizer in continuous mode, checking for new files every 60 seconds:
+
+```bash
+ai-file-organizer \
+  -i ~/Downloads \
+  -o ~/OrganizedFiles \
+  -l Documents Images Videos Code Other \
+  --api-key YOUR_API_KEY \
+  --continuous \
+  --interval 60
+```
+
+This is useful for automatically organizing files as they are added to a folder.
+
 ## Development
 
 ### Running Tests
@@ -474,12 +497,17 @@ docker run --rm ai-file-organizer ai-file-organizer --help
 ## Requirements
 
 ### For Python Installation:
-- Python 3.8+
+- Python 3.11+
 - langchain
+- langchain-google-genai
+- langchain-openai
 - openai
-- python-magic
-- PySimpleGUI (for GUI)
+- python-magic (Linux/macOS) or python-magic-bin (Windows)
+- FreeSimpleGUI (for GUI)
 - pyyaml
+- pypdf
+- Pillow
+- ffmpeg-python
 
 ### For Docker:
 - Docker 20.10+

@@ -96,6 +96,80 @@ labels:
 docker-compose up ai-file-organizer
 ```
 
+## Environment Variables
+
+You can configure the organizer using environment variables:
+
+```bash
+# Core settings
+export INPUT_FOLDER=/input
+export OUTPUT_FOLDER=/output
+export LABELS="Documents,Images,Videos,Code,Other"
+
+# AI configuration
+export PROVIDER=openai
+export MODEL=gpt-3.5-turbo
+export API_KEY=your-api-key
+export TEMPERATURE=0.3
+
+# For local LLM
+export BASE_URL=http://localhost:11434/v1
+export ENSURE_MODEL=true
+
+# For Azure
+export AZURE_ENDPOINT=https://your-resource.openai.azure.com/
+
+# Modes
+export DRY_RUN=false
+export CONTINUOUS=true
+export INTERVAL=60
+export DEBUG_MODE=false
+
+# Reports
+export CSV_REPORT=/output/report.csv
+```
+
+Then run without a config file:
+
+```bash
+docker run -v $(pwd)/input:/input \
+           -v $(pwd)/output:/output \
+           -e OPENAI_API_KEY=$API_KEY \
+           -e CONTINUOUS=true \
+           -e INTERVAL=60 \
+           ai-file-organizer \
+           ai-file-organizer -i /input -o /output
+```
+
+## Continuous Mode
+
+Run the organizer continuously to monitor a folder:
+
+```yaml
+ai:
+  provider: local
+  model: llama2
+  base_url: http://localhost:11434/v1
+
+labels:
+  - Documents
+  - Images
+  - Code
+
+input_folder: /input
+output_folder: /output
+continuous: true
+interval: 60  # Check for new files every 60 seconds
+```
+
+Run with docker-compose:
+
+```bash
+docker-compose up -d ai-file-organizer
+```
+
+The organizer will run in the background, checking for new files every 60 seconds.
+
 ## Development
 
 ### Build for development
